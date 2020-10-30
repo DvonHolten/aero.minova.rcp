@@ -9,7 +9,6 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.e4.core.di.extensions.Preference;
 import org.eclipse.e4.ui.model.application.ui.basic.MPart;
 import org.eclipse.e4.ui.workbench.modeling.ESelectionService;
-import org.eclipse.nebula.widgets.nattable.NatTable;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.osgi.service.prefs.BackingStoreException;
@@ -18,7 +17,7 @@ import aero.minova.rcp.dataservice.IDataFormService;
 import aero.minova.rcp.dataservice.IMinovaJsonService;
 import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.model.Table;
-import aero.minova.rcp.rcp.util.NatTableUtil;
+import aero.minova.rcp.rcp.util.NatTableWrapper;
 import aero.minova.rcp.rcp.util.PersistTableSelection;
 
 public class XMLSearchPart {
@@ -37,7 +36,7 @@ public class XMLSearchPart {
 	ESelectionService selectionService;
 
 	private Table data;
-	private NatTable natTable;
+	private NatTableWrapper natTable;
 
 	@Inject
 	MPart mPart;
@@ -58,7 +57,7 @@ public class XMLSearchPart {
 
 		parent.setLayout(new GridLayout());
 		mPart.getContext().set("NatTableDataSearchArea", data);
-		natTable = NatTableUtil.createNatTable(parent, form, data, false, null);
+		natTable = new NatTableWrapper().createNatTable(parent, form, data, true, selectionService);
 	}
 
 	@PersistTableSelection
@@ -78,8 +77,8 @@ public class XMLSearchPart {
 		// Form form = dataFormService.getForm();
 	}
 
-	public NatTable getNatTable() {
-		return natTable;
-	}
+//	public NatTable getNatTable() {
+//		return natTable;
+//	}
 
 }

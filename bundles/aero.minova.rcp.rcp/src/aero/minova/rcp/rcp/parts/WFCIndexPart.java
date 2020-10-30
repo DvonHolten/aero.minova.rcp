@@ -9,7 +9,6 @@ import org.eclipse.e4.core.di.extensions.Preference;
 import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.ui.di.UIEventTopic;
 import org.eclipse.e4.ui.workbench.modeling.ESelectionService;
-import org.eclipse.nebula.widgets.nattable.NatTable;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.forms.widgets.FormToolkit;
@@ -18,7 +17,7 @@ import aero.minova.rcp.dataservice.IMinovaJsonService;
 import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.model.Row;
 import aero.minova.rcp.model.Table;
-import aero.minova.rcp.rcp.util.NatTableUtil;
+import aero.minova.rcp.rcp.util.NatTableWrapper;
 import aero.minova.rcp.rcp.util.PersistTableSelection;
 
 public class WFCIndexPart extends WFCFormPart {
@@ -42,7 +41,7 @@ public class WFCIndexPart extends WFCFormPart {
 
 	private Composite composite;
 
-	private NatTable natTable;
+	private NatTableWrapper natTable;
 
 	@PostConstruct
 	public void createComposite(Composite parent) {
@@ -64,7 +63,8 @@ public class WFCIndexPart extends WFCFormPart {
 		}
 
 		parent.setLayout(new GridLayout());
-		natTable = NatTableUtil.createNatTable(parent, form, data, true, selectionService);
+		natTable = new NatTableWrapper().createNatTable(parent, form, data, true, selectionService);
+
 	}
 
 	@PersistTableSelection
@@ -83,12 +83,7 @@ public class WFCIndexPart extends WFCFormPart {
 		for (Row r : table.getRows()) {
 			data.addRow(r);
 		}
-		natTable.refresh(false);
-		natTable.requestLayout();
 	}
 
-	public NatTable getNatTable() {
-		return natTable;
-	}
 
 }
