@@ -13,6 +13,8 @@ import org.eclipse.nebula.widgets.nattable.config.DefaultNatTableStyleConfigurat
 import org.eclipse.nebula.widgets.nattable.data.IColumnPropertyAccessor;
 import org.eclipse.nebula.widgets.nattable.data.IDataProvider;
 import org.eclipse.nebula.widgets.nattable.data.IRowDataProvider;
+import org.eclipse.nebula.widgets.nattable.edit.command.UpdateDataCommand;
+import org.eclipse.nebula.widgets.nattable.edit.command.UpdateDataCommandHandler;
 import org.eclipse.nebula.widgets.nattable.extension.glazedlists.GlazedListsEventLayer;
 import org.eclipse.nebula.widgets.nattable.extension.glazedlists.GlazedListsSortModel;
 import org.eclipse.nebula.widgets.nattable.extension.glazedlists.groupBy.GroupByDataLayer;
@@ -277,22 +279,26 @@ public class NatTableWrapper {
 			bodyDataLayer = new GroupByDataLayer<>(getGroupByModel(), this.sortedList,
 					columnPropertyAccessor);
 
-			// we register a custom UpdateDataCommandHandler so that we could add a new
-			// value if desired
-			// alternative we could add a new line during line selection
-//			this.bodyDataLayer.unregisterCommandHandler(UpdateDataCommand.class);
-//			this.bodyDataLayer.registerCommandHandler(new UpdateDataCommandHandler(this.bodyDataLayer) {
-//				@SuppressWarnings("unchecked")
-//				@Override
-//				protected boolean doCommand(UpdateDataCommand command) {
-//					if (super.doCommand(command)) {
-//						System.out.println("Custom update handler called");
-//						return true;
-//					}
-//					return false;
-//				}
-//			});
+//			 we register a custom UpdateDataCommandHandler so that we could add a new
+//			 value if desired
+//			 alternative we could add a new line during line selection
+			this.bodyDataLayer.unregisterCommandHandler(UpdateDataCommand.class);
+			this.bodyDataLayer.registerCommandHandler(new UpdateDataCommandHandler(this.bodyDataLayer) {
+				@SuppressWarnings("unchecked")
+				@Override
+				protected boolean doCommand(UpdateDataCommand command) {
+					if (super.doCommand(command)) {
 
+						// TODO Wie lege ich korrect eine neue row an?
+						// TODO Zeile nur hinzufügen, wenn ich im Suchpart bin und noch keine leere
+						// Zeile existiert
+//						Row create = RowBuilder.newRow().create();
+//						bodyLayerStack.getSortedList().add(create);
+						return true;
+					}
+					return false;
+				}
+			});
 
 			// get the IDataProvider that was created by the GroupByDataLayer
 			this.bodyDataProvider = bodyDataLayer.getDataProvider();
