@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Model
+Bundle-SymbolicName: name.saak.empire.model
+Bundle-Version: 1.2.0.qualifier
+Automatic-Module-Name: name.saak.empire.model
+Bundle-RequiredExecutionEnvironment: JavaSE-11
+Require-Bundle: javax.xml.bind;bundle-version="2.2.0"
+Import-Package: javax.xml.bind,
+ org.eclipse.persistence.jaxb;version="2.7.7"
+Export-Package: name.saak.empire.model

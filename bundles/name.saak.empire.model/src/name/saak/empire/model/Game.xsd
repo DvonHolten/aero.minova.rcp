@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<xs:element name="game">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="name" />
+				<xs:element ref="map" />
+				<xs:element ref="loads" />
+				<xs:element ref="cities" />
+				<xs:element ref="cards" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="name" type="xs:string" />
+	<xs:element name="map">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="shape" minOccurs="0" maxOccurs="unbounded" />
+				<xs:element ref="row"  maxOccurs="unbounded"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="row">
+		<xs:complexType>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="clear" />
+				<xs:element ref="mountain" />
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="shape">
+		<xs:complexType>
+			<xs:sequence minOccurs="3" maxOccurs="unbounded">
+				<xs:element ref="point" />
+			</xs:sequence>
+			<xs:attribute name="color" type="xs:string"></xs:attribute>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="point">
+		<xs:complexType>
+			<xs:attribute name="x" type="xs:double" />
+			<xs:attribute name="y" type="xs:double" />
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="city">
+		<xs:complexType>
+			<xs:attribute name="id" use="required" type="xs:IDREF" />
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="clear" type="row-milepost">
+	</xs:element>
+	<xs:element name="mountain" type="row-milepost">
+	</xs:element>
+	<xs:element name="loads">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element maxOccurs="unbounded" name="load" type="load" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="cities">
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:choice>
+					<xs:element name="small-city" type="small-city" />
+					<xs:element name="medium-city" type="medium-city" />
+					<xs:element name="major-city" type="major-city" />
+				</xs:choice>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="cards">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element ref="demand-card" />
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="demand-card">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element maxOccurs="unbounded" ref="demand" />
+			</xs:sequence>
+			<xs:attribute name="id" use="required" type="xs:integer" />
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="demand">
+		<xs:complexType>
+			<xs:attribute name="city" use="required" type="xs:IDREF" />
+			<xs:attribute name="load" use="required" type="xs:IDREF" />
+			<xs:attribute name="money" use="required" type="xs:int" />
+		</xs:complexType>
+	</xs:element>
+	<xs:complexType name="row-milepost">
+		<xs:attribute name="length" type="xs:int" default="1" />
+		<xs:attribute name="start" type="xs:int" />
+		<xs:attribute name="offset" type="xs:int" default="0" />
+	</xs:complexType>
+	<xs:complexType name="major-city">
+		<xs:complexContent>
+			<xs:extension base="small-city">
+				<xs:attribute name="radius" use="optional" default="2" type="xs:int" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="medium-city">
+		<xs:complexContent>
+			<xs:extension base="small-city" />
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="small-city">
+		<xs:complexContent>
+			<xs:extension base="milepost">
+				<xs:sequence>
+					<xs:element minOccurs="0" maxOccurs="unbounded" name="load" type="xs:IDREF" />
+				</xs:sequence>
+				<xs:attribute name="id" use="required" type="xs:ID" />
+				<xs:attribute name="name" use="required" type="xs:string" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="milepost">
+		<xs:attribute name="position-x" use="required" type="xs:int" />
+		<xs:attribute name="position-y" use="required" type="xs:int" />
+	</xs:complexType>
+	<xs:complexType name="load">
+		<xs:attribute name="count" use="required" type="xs:int" />
+		<xs:attribute name="icon" use="required" type="xs:NCName" />
+		<xs:attribute name="id" use="required" type="xs:ID" />
+		<xs:attribute name="name" use="required" type="xs:NCName" />
+	</xs:complexType>
+</xs:schema>
