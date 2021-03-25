@@ -7,16 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 
 import org.junit.FixMethodOrder;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.runners.MethodSorters;
 
+import aero.minova.rcp.dataservice.HashService;
 import aero.minova.rcp.dataservice.internal.DataService;
 
 /**
@@ -26,7 +29,7 @@ import aero.minova.rcp.dataservice.internal.DataService;
  *
  */
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class DataServiceIT {
+class DataServiceTest {
 
 	private String username = "admin";
 	private String password = "rqgzxTf71EAx8chvchMi";
@@ -69,18 +72,31 @@ class DataServiceIT {
 		assertNotNull(join);
 	}
 	
+
 	@Test
-	@DisplayName("Get application.mdi twice should load from cache")
-	void receiveTwiceTheSameFileShouldLoadFromCache() {
+	@DisplayName("Ensure that we can download a translation file from the server")
+	void ensureThatMessageFileCanBeDownloaded() throws IOException {
+		String serverTranslation = dataService.getHashedFile("i18n/messages_en_US.properties").join();
+		assertFalse(serverTranslation.contains("Internal Server Error"),
+				"Download von message file sollte nicht zu Fehler führen");
+	}
+
+	@Test
+	@Disabled("First the above test needs to run")
+	@DisplayName("Cached translation file should be the same as the file from the server")
+	void compareLocalMessageFileWithServerVersion() throws IOException {
 		// first call should download and create the cached file
-		String firstVersion = dataService.getHashedFile("application.mdi").join();
+		String hashTranslationFile = HashService
+				.hashFile(Path.of("resources", "translations", "messages_en_US.properties").toFile());
 		// second call should read the cached file
-		String secondVersion = dataService.getHashedFile("application.mdi").join();
+
+		String serverTranslation = dataService.getHashedFile("i18n/messages_en_US.properties").join();
 
 		// TODO Check that really the hash version was used, maybe Mockito can be used
 		// to wrap the data service?
-		assertEquals(firstVersion, secondVersion);
+		assertEquals(hashTranslationFile, serverTranslation);
 	}
+
 	
 	
 
