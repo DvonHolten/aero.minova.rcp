@@ -12,6 +12,7 @@ import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.Point;
@@ -42,8 +43,8 @@ public class LookupComposite extends Composite {
 
 	private static final String SETTEXT_KEY = "org.eclipse.nebula.widgets.opal.textassist.TextAssist.settext";
 	private final Text text;
-	private final Shell popup;
-	private final Table table;
+	private Shell popup;
+	private Table table;
 	private LookupContentProvider contentProvider;
 	private boolean useSingleClick = false;
 	private LookupValue firstValue;
@@ -75,7 +76,12 @@ public class LookupComposite extends Composite {
 		this.contentProvider.setLookup(this);
 
 		text = new Text(this, style);
-		popup = new Shell(getDisplay(), SWT.ON_TOP);
+	
+	
+	}
+
+	private void createTable() {
+		popup = new Shell(getShell());
 		popup.setLayout(new FillLayout());
 		table = new Table(popup, SWT.FULL_SELECTION | SWT.V_SCROLL);
 		table.setLinesVisible(true);
@@ -83,17 +89,18 @@ public class LookupComposite extends Composite {
 		new TableColumn(table, SWT.NONE); // Description
 
 		addTextListener();
-		addTableListener();
+//		addTableListener();
 
-		final int[] events = new int[] { SWT.Move, SWT.FocusOut };
-		for (final int event : events) {
-			getShell().addListener(event, e -> {
-				popup.setVisible(false);
-			});
-		}
+		getShell().addListener(SWT.Move, e -> {
+			popup.setVisible(false);
+		});
 
+
+		popup.addListener(SWT.FocusOut, e -> {
+			popup.setVisible(false);
+		});
 	}
-
+	
 	private void addTextListener() {
 		text.addListener(SWT.KeyDown, createKeyDownListener());
 		text.addListener(SWT.Modify, createModifyListener());
@@ -159,41 +166,47 @@ public class LookupComposite extends Composite {
 	 */
 	private Listener createKeyDownListener() {
 		return event -> {
-			if (popupIsOpen()) {
-				switch (event.keyCode) {
-				case SWT.ARROW_DOWN:
-					int index = (table.getSelectionIndex() + 1) % table.getItemCount();
-					table.setSelection(index);
-					event.doit = false;
-					break;
-				case SWT.ARROW_UP:
-					index = table.getSelectionIndex() - 1;
-					if (index < 0) {
-						index = table.getItemCount() - 1;
-					}
-					table.setSelection(index);
-					event.doit = false;
-					break;
-				case SWT.CR:
-				case SWT.KEYPAD_CR:
-					if (popup.isVisible() && table.getSelectionIndex() != -1) {
-						text.setText(table.getSelection()[0].getText());
-						popup.setVisible(false);
-					}
-					break;
-				case SWT.ESC:
-					popup.setVisible(false);
-					break;
-				}
-			} else {
+			// TODO UMBAU AUF DYNAMISCHE TABLE
+			// EIGENTLICH HABEN DIE LISTENERS auf dem TEXTFELD NICHTS VERLOREN
+			// SONDERN
+			
+			
+//			if (popupIsOpen()) {
+//				switch (event.keyCode) {
+//				case SWT.ARROW_DOWN:
+//					int index = (table.getSelectionIndex() + 1) % table.getItemCount();
+//					table.setSelection(index);
+//					event.doit = false;
+//					break;
+//				case SWT.ARROW_UP:
+//					index = table.getSelectionIndex() - 1;
+//					if (index < 0) {
+//						index = table.getItemCount() - 1;
+//					}
+//					table.setSelection(index);
+//					event.doit = false;
+//					break;
+//				case SWT.CR:
+//				case SWT.KEYPAD_CR:
+//					if (popup.isVisible() && table.getSelectionIndex() != -1) {
+//						text.setText(table.getSelection()[0].getText());
+//						popup.setVisible(false);
+//					}
+//					break;
+//				case SWT.ESC:
+//					popup.close();
+//					break;
+//				}
+//			} else {
 				if (event.keyCode == SWT.ARROW_DOWN || ((event.stateMask & SWT.CTRL) != 0) && (event.keyCode == SWT.SPACE)) {
 					showAllElements(text.getText());
 				}
-			}
+			//}
 		};
 	}
 
 	public void showAllElements(String value) {
+		createTable();
 		table.setFont(text.getFont());
 		popupValues = contentProvider.getContent(value);
 		if (popupValues == null || popupValues.isEmpty()) {
@@ -345,15 +358,6 @@ public class LookupComposite extends Composite {
 	}
 
 	/**
-	 * @see org.eclipse.swt.widgets.Text#computeTrim(int, int, int, int)
-	 */
-	@Override
-	public Rectangle computeTrim(final int x, final int y, final int width, final int height) {
-		checkWidget();
-		return super.computeTrim(x, y, width, height);
-	}
-
-	/**
 	 * @see org.eclipse.swt.widgets.Text#getEditable()
 	 */
 	public boolean getEditable() {
@@ -361,14 +365,6 @@ public class LookupComposite extends Composite {
 		return text.getEditable();
 	}
 
-	/**
-	 * @see org.eclipse.swt.widgets.Control#getEnabled()
-	 */
-	@Override
-	public boolean getEnabled() {
-		checkWidget();
-		return super.getEnabled();
-	}
 
 	/**
 	 * @see org.eclipse.swt.widgets.Text#getText()
