@@ -1,6 +1,5 @@
 package aero.minova.rcp.uitests;
 
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -30,8 +29,10 @@ import aero.minova.rcp.constants.Constants;
 import aero.minova.rcp.model.Value;
 import aero.minova.rcp.model.form.MField;
 import aero.minova.rcp.model.form.MGrid;
+import aero.minova.rcp.rcp.accessor.SectionAccessor;
 import aero.minova.rcp.rcp.parts.WFCDetailPart;
 import aero.minova.rcp.uitests.util.UITestUtil;
+
 @ExtendWith(SWTBotJunit5Extension.class)
 public class OpenServiceContractTest {
 
@@ -62,11 +63,11 @@ public class OpenServiceContractTest {
 		stundenErfassung.click();
 
 		// Parts finden
-		searchPart = bot.partByTitle("@Form.Search");
+		searchPart = bot.partById(Constants.SEARCH_PART);
 		assertNotNull(searchPart);
-		indexPart = bot.partByTitle("@Form.Index");
+		indexPart = bot.partById(Constants.INDEX_PART);
 		assertNotNull(indexPart);
-		detailPart = bot.partByTitle("@Form.Details");
+		detailPart = bot.partById(Constants.DETAIL_PART);
 		assertNotNull(detailPart);
 
 		// Nattables finden
@@ -112,7 +113,8 @@ public class OpenServiceContractTest {
 	@Disabled("Currently broken")
 	@DisplayName("Index Laden und Überprüfen, ob Daten geladen wurden!")
 	public void loadIndex() {
-		UITestUtil.loadIndex(indexToolbar);
+		
+		reloadIndex();
 
 		// Überprüfen, ob Daten geladen wurden
 		assertTrue(indexNattable.rowCount() > 3);
@@ -124,7 +126,7 @@ public class OpenServiceContractTest {
 	@DisplayName("Detail Laden und Überprüfen, ob Daten geladen wurden!")
 	public void loadDetail() {
 
-		UITestUtil.loadIndex(indexToolbar);
+		reloadIndex() ;
 		indexNattable.click(4, 1);
 
 		UITestUtil.sleep();
@@ -145,7 +147,7 @@ public class OpenServiceContractTest {
 	@DisplayName("Detail Laden, eine Zeile aus dem Grid löschen, 2 Neue hinzufügen!")
 	public void loadDetailGrid() {
 
-		UITestUtil.loadIndex(indexToolbar);
+		reloadIndex();
 		indexNattable.click(4, 1);
 
 		UITestUtil.sleep();
@@ -158,7 +160,7 @@ public class OpenServiceContractTest {
 		assertEquals(size, 5);
 		gridNattable.click(4, 0);
 
-		Control textClient = grid.getmSection().getSection().getTextClient();
+		Control textClient = ((SectionAccessor) grid.getmSection().getSectionAccessor()).getSection().getTextClient();
 		assertTrue(textClient instanceof ToolBar);
 
 		SWTBotToolbarButton btnInsert = bot.toolbarButtonWithId(Constants.CONTROL_GRID_BUTTON_INSERT);
@@ -181,5 +183,15 @@ public class OpenServiceContractTest {
 	@AfterEach
 	public void sleep() {
 		bot.sleep(10000);
+	}
+	
+	private void reloadIndex() {
+		SWTBotView indexPart = bot.partById(Constants.INDEX_PART);
+		UITestUtil.loadIndex(indexPart.getToolbarButtons().get(0));
+
+		SWTNatTableBot swtNatTableBot = new SWTNatTableBot();
+		SWTBotNatTable indexNattable = swtNatTableBot.nattable(1);
+		indexNattable.click(indexNattable.preferredRowCount() - 1, 3);
+		UITestUtil.sleep();
 	}
 }

@@ -7,7 +7,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -24,13 +23,13 @@ import org.eclipse.e4.ui.model.application.ui.MUIElement;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspective;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspectiveStack;
 import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
-import org.eclipse.e4.ui.workbench.IResourceUtilities;
 import org.eclipse.e4.ui.workbench.UIEvents;
 import org.eclipse.e4.ui.workbench.modeling.EModelService;
 import org.eclipse.e4.ui.workbench.modeling.EPartService;
-import org.eclipse.emf.common.util.URI;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.jface.resource.JFaceResources;
+import org.eclipse.jface.resource.LocalResourceManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MenuEvent;
 import org.eclipse.swt.events.MenuListener;
@@ -51,6 +50,7 @@ import org.osgi.service.prefs.BackingStoreException;
 import org.osgi.service.prefs.Preferences;
 
 import aero.minova.rcp.constants.Constants;
+import aero.minova.rcp.dataservice.ImageUtil;
 import aero.minova.rcp.model.util.ErrorObject;
 import aero.minova.rcp.perspectiveswitcher.commands.E4WorkbenchParameterConstants;
 import aero.minova.rcp.rcp.util.ShowErrorDialogHandler;
@@ -71,9 +71,6 @@ public class PerspectiveControl {
 	private EHandlerService handlerService;
 
 	@Inject
-	private IResourceUtilities<?> resourceUtilities;
-
-	@Inject
 	MWindow window;
 
 	@Inject
@@ -90,19 +87,15 @@ public class PerspectiveControl {
 	Preferences prefsToolbarOrder = InstanceScope.INSTANCE.getNode(Constants.PREFERENCES_TOOLBARORDER);
 	List<String> openToolbarItems;
 
-	/*
-	 * Clear the Toolbar to prevent NullPointerExceptions
-	 */
-	@PreDestroy
-	void cleanUp() {
-		disposeToolBarImages();
-	}
+	private LocalResourceManager localResourceManager;
 
 	/*
 	 * Create the ToolControl with a Toolbar for the Perspective Shortcuts
 	 */
 	@PostConstruct
 	public void createGui(Composite parent, MWindow window) {
+		localResourceManager = new LocalResourceManager(JFaceResources.getResources(), parent);
+
 		composite = new Composite(parent, SWT.BAR);
 		RowLayout rowLayout = new RowLayout(SWT.HORIZONTAL);
 		composite.setLayout(rowLayout);
@@ -121,8 +114,6 @@ public class PerspectiveControl {
 				logger.debug("No item found or item is null");
 			}
 		});
-
-		toolBar.addDisposeListener(event -> disposeToolBarImages());
 
 		List<String> oldToolbarOrder = readOldToolbarOrder();
 		openToolbarItems = new ArrayList<>();
@@ -186,17 +177,6 @@ public class PerspectiveControl {
 		toolBar.pack(true);
 	}
 
-	ImageDescriptor getIconFor(String iconURI) {
-		ImageDescriptor descriptor = null;
-		try {
-			URI uri = URI.createURI(iconURI);
-			descriptor = (ImageDescriptor) resourceUtilities.imageDescriptorFromURI(uri);
-		} catch (RuntimeException ex) {
-			logger.debug(ex, "icon uri=" + iconURI);
-		}
-		return descriptor;
-	}
-
 	/*
 	 * Add shortcut for the perspective in the toolbar
 	 */
@@ -210,17 +190,14 @@ public class PerspectiveControl {
 
 			shortcut = new ToolItem(toolBar, SWT.RADIO);
 			shortcut.setData(perspectiveId);
-			ImageDescriptor descriptor = getIconFor(iconURI);
-
-			if (descriptor != null) {
-				Image icon = descriptor.createImage();
-				shortcut.setImage(icon);
-			}
-
-			if (descriptor == null) {
-				// Kein Icon, oder explizit gewünscht, Label wird als Text übernommen
+			ImageDescriptor descriptor = ImageUtil.getImageDescriptor(iconURI, true);
+			
+			if (descriptor != null && !descriptor.equals(ImageDescriptor.getMissingImageDescriptor())) {
+				shortcut.setImage(localResourceManager.createImage(descriptor));
+			} else {
 				shortcut.setText(localizedLabel != null ? localizedLabel : "");
 			}
+
 			shortcut.setToolTipText(localizedTooltip);
 			shortcut.addSelectionListener(new SelectionAdapter() {
 				@Override
@@ -228,7 +205,8 @@ public class PerspectiveControl {
 					Map<String, String> parameter = Map.of(//
 							Constants.FORM_NAME, formName, //
 							Constants.FORM_ID, perspectiveId, //
-							Constants.FORM_LABEL, formLable);
+							Constants.FORM_LABEL, formLable, //
+							Constants.FORM_ICON, iconURI);
 
 					ParameterizedCommand command = commandService.createCommand("aero.minova.rcp.rcp.command.openform", parameter);
 					handlerService.executeHandler(command);
@@ -287,20 +265,6 @@ public class PerspectiveControl {
 		}
 
 		return toolItem;
-	}
-
-	private void disposeToolBarImages() {
-		if (toolBar == null || toolBar.isDisposed()) {
-			return;
-		}
-
-		for (ToolItem item : toolBar.getItems()) {
-			Image icon = item.getImage();
-			if (icon != null) {
-				item.setImage(null);
-				icon.dispose();
-			}
-		}
 	}
 
 	public void setSelectedElement(MPerspective perspective) {

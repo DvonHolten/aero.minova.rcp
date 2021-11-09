@@ -1,16 +1,20 @@
 package aero.minova.rcp.rcp.nattable;
 
 import java.text.NumberFormat;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Locale;
 
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.nebula.widgets.nattable.data.convert.DisplayConverter;
+import org.osgi.service.prefs.Preferences;
 
 import aero.minova.rcp.constants.Constants;
 import aero.minova.rcp.model.DataType;
 import aero.minova.rcp.model.DateTimeType;
 import aero.minova.rcp.model.FilterValue;
+import aero.minova.rcp.preferences.ApplicationPreferences;
+import aero.minova.rcp.preferencewindow.builder.DisplayType;
+import aero.minova.rcp.preferencewindow.builder.InstancePreferenceAccessor;
 import aero.minova.rcp.rcp.util.OperatorExtractionUtil;
 import aero.minova.rcp.util.DateTimeUtil;
 import aero.minova.rcp.util.DateUtil;
@@ -22,6 +26,7 @@ public class FilterDisplayConverter extends DisplayConverter {
 	private DataType datatype;
 	private DateTimeType datetimetype;
 	private ZoneId zoneId;
+	private int decimals;
 
 	public FilterDisplayConverter(DataType datatype, Locale locale, DateTimeType datetimetype, ZoneId zoneId) {
 		this.locale = locale;
@@ -36,9 +41,10 @@ public class FilterDisplayConverter extends DisplayConverter {
 		this.datetimetype = datetimetype;
 	}
 
-	public FilterDisplayConverter(DataType datatype, Locale locale) {
+	public FilterDisplayConverter(DataType datatype, Locale locale, int decimals) {
 		this.locale = locale;
 		this.datatype = datatype;
+		this.decimals = decimals;
 	}
 
 	public FilterDisplayConverter(DataType datatype) {
@@ -47,6 +53,10 @@ public class FilterDisplayConverter extends DisplayConverter {
 
 	@Override
 	public Object canonicalToDisplayValue(Object canonicalValue) {
+		Preferences preferences = InstanceScope.INSTANCE.getNode(ApplicationPreferences.PREFERENCES_NODE);
+		String dateUtil = (String) InstancePreferenceAccessor.getValue(preferences, ApplicationPreferences.DATE_UTIL, DisplayType.DATE_UTIL, "", locale);
+		String timeUtil = (String) InstancePreferenceAccessor.getValue(preferences, ApplicationPreferences.TIME_UTIL, DisplayType.TIME_UTIL, "", locale);
+
 		if (canonicalValue instanceof FilterValue) {
 			FilterValue cv = (FilterValue) canonicalValue;
 			String val = "";
@@ -57,26 +67,29 @@ public class FilterDisplayConverter extends DisplayConverter {
 			case INSTANT:
 				switch (datetimetype) {
 				case DATE:
-					val = DateUtil.getDateString((Instant) cv.getFilterValue().getValue(), locale);
+					val = DateUtil.getDateString(cv.getFilterValue().getInstantValue(), locale, dateUtil);
 					break;
 				case TIME:
-					val = TimeUtil.getTimeString((Instant) cv.getFilterValue().getValue(), locale);
+					val = TimeUtil.getTimeString(cv.getFilterValue().getInstantValue(), locale, timeUtil);
 					break;
 				case DATETIME:
-					val = DateUtil.getDateTimeString((Instant) cv.getFilterValue().getValue(), locale, zoneId);
+					val = DateTimeUtil.getDateTimeString(cv.getFilterValue().getInstantValue(), locale, dateUtil, timeUtil);
 					break;
 				}
 				break;
 			case ZONED:
-				val = DateUtil.getDateTimeString((Instant) cv.getFilterValue().getValue(), locale, zoneId);
+				val = DateTimeUtil.getDateTimeString(cv.getFilterValue().getInstantValue(), locale, dateUtil, timeUtil);
+				break;
+			case DOUBLE:
+				NumberFormat formatter = NumberFormat.getInstance(locale);
+				formatter.setMaximumFractionDigits(decimals);
+				formatter.setMinimumFractionDigits(decimals);
+				val = formatter.format(cv.getFilterValue().getDoubleValue());
 				break;
 			default:
 				val = cv.getFilterValue().getValue().toString();
 			}
 
-			if (cv.getValue().toString().contains("null")) {
-				return cv.getValue().toString();
-			}
 			return cv.getValue().toString() + " " + val;
 		}
 		return null;
@@ -134,10 +147,6 @@ public class FilterDisplayConverter extends DisplayConverter {
 					break;
 				case DOUBLE:
 					filterValue = Double.parseDouble(filterValueString);
-					NumberFormat formatter = NumberFormat.getInstance(locale);
-					formatter.setMaximumFractionDigits(2);
-					formatter.setMinimumFractionDigits(2);
-					filterValue = formatter.format((double) filterValue);
 					break;
 				case BOOLEAN:
 					filterValue = Boolean.parseBoolean(filterValueString);

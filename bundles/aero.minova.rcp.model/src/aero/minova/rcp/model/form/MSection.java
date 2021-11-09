@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.swt.graphics.Image;
-import org.eclipse.swt.widgets.Control;
-import org.eclipse.ui.forms.widgets.Section;
 
 public class MSection {
 
@@ -18,14 +16,13 @@ public class MSection {
 	// Liste an allen mit Tab erreichbaren Feldern der Section. Festlegen dieser
 	// anhand der Preferences
 	private List<MField> tabList = new ArrayList<>();
+	// ID dieser Page ("Head" für Head)
+	private String id;
 	// Text für diese Page
 	private String label;
 	// Symbol für diese Page
 	private Image icon;
-
-	private Section section;
-
-	private Control control;
+	private ISectionAccessor sectionAccessor;
 
 	/**
 	 * Erstellt eine neue MSection.
@@ -43,13 +40,12 @@ public class MSection {
 	 * @param section
 	 *            das org.eclipse.ui.forms.widgets.Section Element
 	 */
-	public MSection(boolean isHead, String status, MDetail mDetail, String label, Control control, Section section) {
+	public MSection(boolean isHead, String status, MDetail mDetail, String id, String label) {
 		this.isHead = isHead;
 		this.status = status;
 		this.mDetail = mDetail;
+		this.id = id;
 		this.label = label;
-		this.control = control;
-		this.section = section;
 	}
 
 	public boolean isHead() {
@@ -76,17 +72,6 @@ public class MSection {
 		this.mDetail = mDetail;
 	}
 
-	/**
-	 * @return Twistie wenn es vorhanden ist.
-	 */
-	public Control getSectionControl() {
-		return control;
-	}
-
-	public void setSection(Control section) {
-		this.control = section;
-	}
-
 	public List<MField> getTabList() {
 		return tabList;
 	}
@@ -97,6 +82,14 @@ public class MSection {
 
 	public void addTabField(MField mField) {
 		this.tabList.add(mField);
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
 	}
 
 	public String getLabel() {
@@ -115,12 +108,16 @@ public class MSection {
 		this.icon = icon;
 	}
 
-	/**
-	 * Liefert das org.eclipse.ui.forms.widgets.Section Element zurück.
-	 *
-	 * @return section
-	 */
-	public Section getSection() {
-		return section;
+	public ISectionAccessor getSectionAccessor() {
+		return sectionAccessor;
 	}
+
+	public void setSectionAccessor(ISectionAccessor sectionAccessor) {
+		this.sectionAccessor = sectionAccessor;
+	}
+
+	public void setVisible(boolean visible) {
+		sectionAccessor.setVisible(visible);
+	}
+
 }

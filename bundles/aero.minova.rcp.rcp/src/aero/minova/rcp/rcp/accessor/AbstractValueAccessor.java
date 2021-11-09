@@ -1,14 +1,21 @@
 package aero.minova.rcp.rcp.accessor;
 
+import java.util.function.Predicate;
+
 import javax.inject.Inject;
 
+import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.ui.services.IStylingEngine;
+import org.eclipse.e4.ui.workbench.UIEvents;
 import org.eclipse.nebula.widgets.opal.textassist.TextAssist;
 import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.FocusListener;
+import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Text;
 
+import aero.minova.rcp.constants.Constants;
+import aero.minova.rcp.model.LookupValue;
 import aero.minova.rcp.model.Row;
 import aero.minova.rcp.model.Value;
 import aero.minova.rcp.model.form.IValueAccessor;
@@ -25,6 +32,9 @@ public abstract class AbstractValueAccessor implements IValueAccessor {
 	@Inject
 	IStylingEngine engine;
 
+	@Inject
+	IEventBroker broker;
+
 	public AbstractValueAccessor(MField field, Control control) {
 		super();
 		this.field = field;
@@ -38,13 +48,13 @@ public abstract class AbstractValueAccessor implements IValueAccessor {
 				setFocussed(false);
 				// Überprüfung ob der eingetragenen Wert in der Liste ist und ebenfalls gültig!
 				field.setValue(field.getValue(), false);
-				field.getDetail().setSelectedField(null);
+				((DetailAccessor) field.getDetail().getDetailAccessor()).setSelectedControl(null);
 			}
 
 			@Override
 			public void focusGained(FocusEvent e) {
 				setFocussed(true);
-				field.getDetail().setSelectedField(control);
+				((DetailAccessor) field.getDetail().getDetailAccessor()).setSelectedControl(control);
 			}
 		});
 	}
@@ -70,6 +80,8 @@ public abstract class AbstractValueAccessor implements IValueAccessor {
 			((Text) control).setEditable(editable);
 		} else if (control instanceof TextAssist) {
 			((TextAssist) control).setEditable(editable);
+		} else if (control instanceof Button) {
+			((Button) control).setEnabled(editable);
 		}
 	}
 
@@ -124,4 +136,13 @@ public abstract class AbstractValueAccessor implements IValueAccessor {
 		}
 	}
 
+	@Override
+	public void updateSaveButton() {
+		broker.send(UIEvents.REQUEST_ENABLEMENT_UPDATE_TOPIC, Constants.SAVE_DETAIL_BUTTON);
+	}
+
+	@Override
+	public void setFilterForLookupContentProvider(Predicate<LookupValue> filter) {
+		// Tut nichts für Felder außer Lookups, ist im LookupValueAccessor überschrieben
+	}
 }

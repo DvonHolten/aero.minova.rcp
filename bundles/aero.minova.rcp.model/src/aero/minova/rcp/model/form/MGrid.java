@@ -3,23 +3,25 @@ package aero.minova.rcp.model.form;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.nebula.widgets.nattable.layer.ILayerListener;
 import org.eclipse.swt.graphics.Image;
 
 import aero.minova.rcp.form.model.xsd.Grid;
 import aero.minova.rcp.model.Column;
 import aero.minova.rcp.model.Row;
 import aero.minova.rcp.model.Table;
+import aero.minova.rcp.model.Value;
 import aero.minova.rcp.model.event.GridChangeEvent;
 import aero.minova.rcp.model.event.GridChangeListener;
 
 public class MGrid {
 
-	public MGrid(String procedureSuffix) {
-		super();
-		this.procedureSuffix = procedureSuffix;
+	public MGrid(String id) {
+		this.id = id;
 	}
 
 	private String title;
+	private String id;
 	private String procedureSuffix;
 	private String procedurePrefix;
 	private String helperClass;
@@ -30,8 +32,10 @@ public class MGrid {
 	private Grid grid;
 	private List<MField> fields;
 	private MSection mSection;
-	private Table dataTable;
 	private ArrayList<GridChangeListener> listeners;
+
+	private IGridValidator validator;
+	private List<Integer> columnsToValidate;
 
 	public String getTitle() {
 		return title;
@@ -39,6 +43,14 @@ public class MGrid {
 
 	public void setTitle(String title) {
 		this.title = title;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		this.id = id;
 	}
 
 	public String getProcedureSuffix() {
@@ -98,11 +110,11 @@ public class MGrid {
 	}
 
 	public Table getDataTable() {
-		return dataTable;
+		return gridAccessor.getDataTable();
 	}
 
 	public void setDataTable(Table dataTable) {
-		this.dataTable = dataTable;
+		gridAccessor.setDataTable(dataTable);
 	}
 
 	public MSection getmSection() {
@@ -130,11 +142,21 @@ public class MGrid {
 	}
 
 	public boolean isValid() {
+		Table dataTable = gridAccessor.getDataTable();
 		for (Column c : dataTable.getColumns()) {
+
+			if (validator != null && columnsToValidate.contains(dataTable.getColumns().indexOf(c))) {
+				for (Row r : dataTable.getRows()) {
+					if (!validator.checkValid(dataTable.getColumns().indexOf(c), dataTable.getRows().indexOf(r))) {
+						return false;
+					}
+				}
+			}
+
 			if (c.isRequired()) {
 				// TODO: Weitere Eigenschaften prüfen? (Textlänge, ...)
 				for (Row r : dataTable.getRows()) {
-					if (r.getValue(dataTable.getColumns().indexOf(c)).getValue() == null) {
+					if (r.getValue(dataTable.getColumns().indexOf(c)) == null || r.getValue(dataTable.getColumns().indexOf(c)).getValue() == null) {
 						return false;
 					}
 				}
@@ -146,8 +168,8 @@ public class MGrid {
 	/*
 	 * Diese Methode muss aufgerufen werden, wenn sich an der unterliegenden Tabelle etwas geändert hat, damit die GridChangedEvents verschickt werden
 	 */
-	public void dataTableChanged() {
-		fire(new GridChangeEvent(this, dataTable));
+	public void dataTableChanged(GridChangeEvent event) {
+		fire(event);
 	}
 
 	/**
@@ -191,5 +213,94 @@ public class MGrid {
 		for (GridChangeListener listener : listeners) {
 			listener.gridChange(event);
 		}
+	}
+
+	public Table getSelectedRows() {
+		return gridAccessor.getSelectedRows();
+	}
+
+	public void deleteCurrentRows() {
+		gridAccessor.deleteCurrentRows();
+	}
+
+	public Row addRow() {
+		return gridAccessor.addRow();
+	}
+
+	public void addRows(Table rows) {
+		gridAccessor.addRows(rows);
+	}
+
+	public void addSelectionListener(ILayerListener listener) {
+		gridAccessor.addSelectionListener(listener);
+	}
+
+	public void removeSelectionListener(ILayerListener listener) {
+		gridAccessor.removeSelectionListener(listener);
+	}
+
+	public void closeEditor() {
+		gridAccessor.closeEditor();
+	}
+
+	/**
+	 * Setzt alle Spalten auf ihren ursprünglichen read-only und required Zustand zurück
+	 */
+	public void resetReadOnlyAndRequiredColumns() {
+		gridAccessor.resetReadOnlyAndRequiredColumns();
+	}
+
+	public void setColumnRequired(int columnIndex, boolean required) {
+		gridAccessor.setColumnRequired(columnIndex, required);
+	}
+
+	public void setGridRequired(boolean required) {
+		gridAccessor.setGridRequired(required);
+	}
+
+	public void setColumnReadOnly(int columnIndex, boolean readOnly) {
+		gridAccessor.setColumnReadOnly(columnIndex, readOnly);
+	}
+
+	public void setGridReadOnly(boolean readOnly) {
+		gridAccessor.setGridReadOnly(readOnly);
+	}
+
+	/**
+	 * Fügt Validierung zum Grid hinzu, über die Methoden des IGridValidator. Nur die Spalten in columnsToValidate werden überprüft
+	 * 
+	 * @param validator
+	 * @param columnsToValidate
+	 */
+	public void addValidation(IGridValidator validator, List<Integer> columnsToValidate) {
+		this.validator = validator;
+		this.columnsToValidate = columnsToValidate;
+		gridAccessor.addValidation(validator, columnsToValidate);
+	}
+
+	public void setValue(int columnIndex, int rowIndex, Value newValue) {
+		GridChangeEvent gridChangeEvent = new GridChangeEvent(this, columnIndex, rowIndex, getDataTable().getValue(columnIndex, rowIndex), newValue, false);
+		getDataTable().setValue(columnIndex, rowIndex, newValue);
+		fire(gridChangeEvent);
+	}
+
+	public void setValue(String columnName, int rowIndex, Value newValue) {
+		setValue(getDataTable().getColumnIndex(columnName), rowIndex, newValue);
+	}
+
+	public void setValue(String columnName, Row r, Value newValue) {
+		setValue(getDataTable().getColumnIndex(columnName), getDataTable().getRows().indexOf(r), newValue);
+	}
+
+	public Value getValue(String columnName, Row r) {
+		return getDataTable().getValue(columnName, r);
+	}
+
+	public Value getValue(String columnName, int rowIndex) {
+		return getDataTable().getValue(columnName, rowIndex);
+	}
+
+	public Value getValue(int col, int row) {
+		return getDataTable().getValue(col, row);
 	}
 }

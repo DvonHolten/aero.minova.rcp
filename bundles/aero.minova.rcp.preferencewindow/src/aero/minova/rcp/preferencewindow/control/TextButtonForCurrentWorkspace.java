@@ -1,6 +1,10 @@
 package aero.minova.rcp.preferencewindow.control;
 
+import static org.eclipse.jface.dialogs.PlainMessageDialog.getBuilder;
+
+import java.awt.Desktop;
 import java.io.IOException;
+import java.util.List;
 
 import javax.inject.Inject;
 
@@ -9,7 +13,7 @@ import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.core.services.log.Logger;
 import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.workbench.IWorkbench;
-import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.dialogs.PlainMessageDialog;
 import org.eclipse.nebula.widgets.opal.preferencewindow.PreferenceWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -77,7 +81,7 @@ public class TextButtonForCurrentWorkspace extends CustomPWWidget {
 		label.setLayoutData(labelGridData);
 
 		Composite cmp = new Composite(parent, SWT.NONE);
-		cmp.setLayout(new GridLayout(2, false));
+		cmp.setLayout(new GridLayout(3, false));
 		addControl(cmp);
 
 		final Text text = new Text(cmp, SWT.BORDER | SWT.READ_ONLY);
@@ -92,18 +96,37 @@ public class TextButtonForCurrentWorkspace extends CustomPWWidget {
 			text.setText(translationService.translate("Not found", null));
 		}
 
-		final Button button = new Button(cmp, SWT.PUSH);
-		final GridData buttonGridData = new GridData(SWT.FILL, SWT.CENTER, false, false);
-		button.setText(translationService.translate("@Action.Delete", null));
-		button.setLayoutData(buttonGridData);
+		final Button openButton = new Button(cmp, SWT.PUSH);
+		GridData buttonGridData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		openButton.setText(translationService.translate("@Action.Open", null));
+		openButton.setLayoutData(buttonGridData);
 
-		button.addSelectionListener(new SelectionAdapter() {
+		openButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent e) {
+				try {
+					Desktop.getDesktop().open(dataService.getStoragePath().toAbsolutePath().toFile());
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+		});
+
+		final Button deleteButton = new Button(cmp, SWT.PUSH);
+		buttonGridData = new GridData(SWT.FILL, SWT.CENTER, false, false);
+		deleteButton.setText(translationService.translate("@Action.Delete", null));
+		deleteButton.setLayoutData(buttonGridData);
+
+		deleteButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent e) {
 				Shell activeShell = Display.getCurrent().getActiveShell();
-				boolean openConfirm = MessageDialog.openConfirm(activeShell, "Neustart", translationService.translate("@msg.WFCDeleteWorkspaceRestart", null));
 
-				if (openConfirm) {
+				PlainMessageDialog confirmRestart = getBuilder(activeShell, translationService.translate("@Action.Restart", null))
+						.buttonLabels(List.of(translationService.translate("@Action.Restart", null), translationService.translate("@Abort", null)))
+						.message(translationService.translate("@msg.WFCDeleteWorkspaceRestart", null)).build();
+
+				if (confirmRestart.open() == 0) {
 					context.set(IWorkbench.PERSIST_STATE, false);
 					try {
 						FileUtils.deleteDirectory(dataService.getStoragePath().toAbsolutePath().toFile());
@@ -115,7 +138,7 @@ public class TextButtonForCurrentWorkspace extends CustomPWWidget {
 			}
 		});
 
-		return button;
+		return deleteButton;
 	}
 
 	/**

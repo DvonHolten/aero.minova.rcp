@@ -1,5 +1,7 @@
 package aero.minova.rcp.model.form;
 
+import org.eclipse.swt.events.SelectionListener;
+
 public class MButton {
 
 	private String id;
@@ -45,6 +47,22 @@ public class MButton {
 
 	public boolean getEnabled() {
 		return buttonAccessor.getEnabled();
+	}
+
+	public void addSelectionListener(SelectionListener listener) {
+		buttonAccessor.addSelectionListener(listener);
+	}
+
+	public void removeSelectionListener(SelectionListener listener) {
+		buttonAccessor.removeSelectionListener(listener);
+	}
+
+	public boolean isCanBeEnabled() {
+		return buttonAccessor.isCanBeEnabled();
+	}
+
+	public void setCanBeEnabled(boolean canBeEnabled) {
+		buttonAccessor.setCanBeEnabled(canBeEnabled);
 	}
 
 }

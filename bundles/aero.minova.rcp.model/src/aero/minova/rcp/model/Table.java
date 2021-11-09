@@ -170,7 +170,7 @@ public class Table {
 				if (v == null) {
 					newRow.addValue(null);
 				} else {
-					newRow.addValue(new Value(v.getValue()));
+					newRow.addValue(new Value(v.getValue(), v.getType()));
 				}
 			}
 			table.addRow(newRow);
@@ -179,4 +179,32 @@ public class Table {
 		return table;
 	}
 
+	@Override
+	public String toString() {
+		return "Table " + name;
+	}
+
+	public void setValue(String columnName, int rowIndex, Value newValue) {
+		setValue(getColumnIndex(columnName), rowIndex, newValue);
+	}
+
+	public void setValue(String columnName, Row r, Value newValue) {
+		r.setValue(newValue, getColumnIndex(columnName));
+	}
+
+	public void setValue(int columnIndex, int rowIndex, Value newValue) {
+		rows.get(rowIndex).setValue(newValue, columnIndex);
+	}
+
+	public Value getValue(String columnName, Row r) {
+		return r.getValue(getColumnIndex(columnName));
+	}
+
+	public Value getValue(String columnName, int rowIndex) {
+		return getValue(getColumnIndex(columnName), rowIndex);
+	}
+
+	public Value getValue(int col, int row) {
+		return rows.get(row).getValue(col);
+	}
 }

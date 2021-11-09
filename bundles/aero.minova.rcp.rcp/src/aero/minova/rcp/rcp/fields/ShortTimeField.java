@@ -9,10 +9,10 @@ import static aero.minova.rcp.rcp.fields.FieldUtil.TRANSLATE_LOCALE;
 import static aero.minova.rcp.rcp.fields.FieldUtil.TRANSLATE_PROPERTY;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -20,6 +20,7 @@ import java.util.Locale;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.e4.core.contexts.ContextInjectionFactory;
 import org.eclipse.e4.core.contexts.IEclipseContext;
+import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspective;
 import org.eclipse.jface.widgets.LabelFactory;
 import org.eclipse.nebula.widgets.opal.textassist.TextAssist;
@@ -49,7 +50,10 @@ public class ShortTimeField {
 		throw new IllegalStateException("Utility class");
 	}
 
-	public static Control create(Composite composite, MField field, int row, int column, Locale locale, String timezone, MPerspective perspective) {
+	public static Control create(Composite composite, MField field, int row, int column, Locale locale, String timezone, MPerspective perspective,
+			TranslationService translationService) {
+		Preferences preferences = InstanceScope.INSTANCE.getNode(ApplicationPreferences.PREFERENCES_NODE);
+		String timeUtil = (String) InstancePreferenceAccessor.getValue(preferences, ApplicationPreferences.TIME_UTIL, DisplayType.TIME_UTIL, "", locale);
 
 		String labelText = field.getLabel() == null ? "" : field.getLabel();
 		Label label = LabelFactory.newLabel(SWT.RIGHT).text(labelText).create(composite);
@@ -61,19 +65,12 @@ public class ShortTimeField {
 				ArrayList<String> result = new ArrayList<>();
 				Instant time = TimeUtil.getTime(entry);
 				if (time == null && !entry.isEmpty()) {
-					result.add("!Error converting");
-					field.setValue(null, true);
+					result.add(translationService.translate("@msg.ErrorConverting", null));
 				} else {
 					Preferences preferences = InstanceScope.INSTANCE.getNode(ApplicationPreferences.PREFERENCES_NODE);
 					String timeUtil = (String) InstancePreferenceAccessor.getValue(preferences, ApplicationPreferences.TIME_UTIL, DisplayType.TIME_UTIL, "",
 							locale);
-					LocalTime localTime = LocalTime.ofInstant(time, ZoneId.of("UTC"));
-					DateTimeFormatter dtf = DateTimeFormatter.ofPattern(timeUtil, locale);
-					if (timeUtil.isBlank()) {
-						result.add(localTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)));
-					} else {
-						result.add(localTime.format(dtf));
-					}
+					result.add(TimeUtil.getTimeString(time, locale, timeUtil));
 					field.setValue(new Value(time), true);
 				}
 				return result;
@@ -81,13 +78,21 @@ public class ShortTimeField {
 
 		};
 		TextAssist text = new TextAssist(composite, SWT.BORDER, contentProvider);
-		text.setMessage(LocalTime.of(23, 59).format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)));
+		LocalDateTime date = LocalDateTime.of(LocalDate.of(2000, 01, 01), LocalTime.of(11, 59));
+		text.setMessage(TimeUtil.getTimeString(date.toInstant(ZoneOffset.UTC), locale, timeUtil));
 		text.setNumberOfLines(1);
 		text.setData(TRANSLATE_LOCALE, locale);
 		text.addFocusListener(new FocusAdapter() {
 			@Override
 			public void focusGained(FocusEvent e) {
 				text.selectAll();
+			}
+
+			@Override
+			public void focusLost(FocusEvent e) {
+				if (text.getText().isBlank()) {
+					field.setValue(null, true);
+				}
 			}
 		});
 		text.setData(Constants.CONTROL_FIELD, field);
