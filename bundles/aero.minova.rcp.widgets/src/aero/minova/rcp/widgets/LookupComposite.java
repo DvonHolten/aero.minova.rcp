@@ -239,7 +239,10 @@ public class LookupComposite extends Composite {
 		}
 
 		popup.setLocation(x, y);
-		popup.setVisible(true);
+		if (!popup.isVisible()) {
+			popup.setActive();
+			popup.setVisible(true);
+		}
 
 		if (System.getProperty("os.name").startsWith("Linux")) {
 			table.setFocus();
