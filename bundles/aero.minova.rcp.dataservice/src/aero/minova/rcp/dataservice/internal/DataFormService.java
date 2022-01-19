@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -252,7 +253,12 @@ public class DataFormService implements IDataFormService {
 	}
 
 	@Override
-	public Form getForm(String name) {
+	public CompletableFuture<Form> getForm(String name) {
+		CompletableFuture<Form> supplyAsync = CompletableFuture.supplyAsync(() -> getFormSync(name));
+		return supplyAsync;
+	}
+
+	private Form getFormSync(String name) {
 
 		Form form = null;
 		String formContent = "";

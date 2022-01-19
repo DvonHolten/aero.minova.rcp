@@ -1,6 +1,8 @@
 package aero.minova.rcp.css.widgets;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseListener;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.ui.forms.events.HyperlinkAdapter;
@@ -25,15 +27,14 @@ public class MinovaSection extends Section {
 		cssStyler = new MinovaSectionStyler(this);
 
 		expandable = (style & ExpandableComposite.TWISTIE) != 0;
-
 		this.imageLink = new ImageHyperlink(this, SWT.LEFT | getOrientation() | SWT.NO_FOCUS);
-		this.imageLink.setUnderlined(false);
-		this.imageLink.setBackground(getTitleBarGradientBackground());
-		this.imageLink.setForeground(getTitleBarForeground());
-		this.imageLink.setFont(parent.getFont());
-		super.textLabel = this.imageLink;
+		this.getImageLink().setUnderlined(false);
+		this.getImageLink().setBackground(getTitleBarGradientBackground());
+		this.getImageLink().setForeground(getTitleBarForeground());
+		this.getImageLink().setFont(parent.getFont());
+		super.textLabel = this.getImageLink();
 
-		this.imageLink.addHyperlinkListener(new HyperlinkAdapter() {
+		this.getImageLink().addHyperlinkListener(new HyperlinkAdapter() {
 			@Override
 			public void linkActivated(final HyperlinkEvent e) {
 				if (!isExpanded()) {
@@ -43,18 +44,39 @@ public class MinovaSection extends Section {
 				}
 			}
 		});
+		this.imageLink.addMouseListener(new MouseListener() {
+
+			@Override
+			public void mouseUp(MouseEvent e) {
+				System.out.println("MouseUP" + e.count);
+
+			}
+
+			@Override
+			public void mouseDown(MouseEvent e) {
+				System.out.println("Mouse Down" + e.count);
+
+			}
+
+			@Override
+			public void mouseDoubleClick(MouseEvent e) {
+				System.out.println("DoubleClick" + e.count);
+			}
+
+		});
+
 	}
 
 	public void setImage(final Image image) {
 		if (image != null) {
-			this.imageLink.setImage(image);
+			this.getImageLink().setImage(image);
 		}
 	}
 
 	@Override
 	public void setText(String title) {
-		this.imageLink.setText(title);
-		this.imageLink.requestLayout();
+		this.getImageLink().setText(title);
+		this.getImageLink().requestLayout();
 	}
 
 	@Override
@@ -78,5 +100,9 @@ public class MinovaSection extends Section {
 	 */
 	public ICssStyler getCssStyler() {
 		return cssStyler;
+	}
+
+	public ImageHyperlink getImageLink() {
+		return imageLink;
 	}
 }

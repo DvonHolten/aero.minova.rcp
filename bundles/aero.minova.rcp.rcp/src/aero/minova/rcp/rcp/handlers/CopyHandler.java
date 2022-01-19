@@ -35,14 +35,15 @@ public class CopyHandler {
 
 	/**
 	 * Button entsprechend der Maske anzeigen
-	 * 
+	 *
 	 * @param part
 	 * @return
 	 */
 	@Evaluate
 	public boolean visible(MPart part) {
 		detail = (WFCDetailPart) part.getObject();
-		return detail.getForm().getDetail().isButtonCopyVisible();
+//		return detail.getForm().getDetail().isButtonCopyVisible();
+		return false;
 	}
 
 	@CanExecute

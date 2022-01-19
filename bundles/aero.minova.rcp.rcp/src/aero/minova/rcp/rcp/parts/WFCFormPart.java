@@ -1,9 +1,15 @@
 package aero.minova.rcp.rcp.parts;
 
+import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspective;
+import org.eclipse.e4.ui.workbench.modeling.EModelService;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 
 import aero.minova.rcp.dataservice.IDataFormService;
 import aero.minova.rcp.dataservice.IDataService;
@@ -22,21 +28,26 @@ public abstract class WFCFormPart {
 
 	@Inject
 	protected IMinovaPluginService pluginService;
-	protected Form form;
+	// protected Form form;
 
-	public Form getForm() {
+	public CompletableFuture<Form> getForm() {
 		IEclipseContext ctx = mPerspective.getContext();
 //		form = ctx.get(Form.class);
-		if (form == null) {
-			// TODO herausfinden wo das gesetzt wird und dokumentieren
-			String formName = mPerspective.getPersistedState().get(E4WorkbenchParameterConstants.FORM_NAME);
+		String formName = mPerspective.getPersistedState().get(E4WorkbenchParameterConstants.FORM_NAME);
 
-			form = dataFormService.getForm(formName);
-			// Form in den Context injected, damit überall darauf zugegriffen werden kann
+		CompletableFuture<Form> form2 = dataFormService.getForm(formName);
+		form2.thenAccept(form -> {
 			ctx.set(Form.class, form);
-		}
+		});
+		// Form in den Context injected, damit überall darauf zugegriffen werden kann
 
-		return form;
+		return form2;
 	}
 
+	public abstract void createUserInterface(Composite parent, Form form);
+
+	@PostConstruct
+	public void init(Composite parent, EModelService modelService) {
+		getForm().thenAccept(form -> Display.getDefault().asyncExec(() -> createUserInterface(parent, form)));
+	}
 }

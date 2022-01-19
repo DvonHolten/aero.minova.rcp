@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -96,30 +95,8 @@ public class WFCSearchPart extends WFCFormPart {
 	private ColumnReorderLayer columnReorderLayer;
 	private DataLayer bodyDataLayer;
 
-	@PostConstruct
-	public void createComposite(Composite parent, IEclipseContext context) {
-		new FormToolkit(parent.getDisplay());
-		getForm();
-
-		// "&" Spalte erstellen
-		aero.minova.rcp.form.model.xsd.Column xsdColumn = new aero.minova.rcp.form.model.xsd.Column();
-		xsdColumn.setBoolean(Boolean.FALSE);
-		xsdColumn.setLabel("&");
-		xsdColumn.setName("&");
-		form.getIndexView().getColumn().add(0, xsdColumn);
-
-		data = dataFormService.getTableFromFormIndex(form);
-		getData().addRow();
-		// Wir setzen die Verundung auf false im Default-Fall!
-		getData().getRows().get(getData().getRows().size() - 1).setValue(new Value(false), 0);
-
-		parent.setLayout(new GridLayout());
-		mPart.getContext().set("NatTableDataSearchArea", getData());
-
-		natTable = createNatTable(parent, form, getData());
-
-		loadPrefs(Constants.LAST_STATE);
-	}
+	@Inject
+	private IEclipseContext context;
 
 	/**
 	 * Setzt die größe der Spalten aus dem sichtbaren Bereiches im Index-Bereich auf die Maximale Breite des Inhalts.
@@ -239,7 +216,7 @@ public class WFCSearchPart extends WFCFormPart {
 	 * xxx.table -> Inhalt der Tabelle <br>
 	 * xxx.search.size (index,breite(int)) -> Speichert auch Reihenfolge der Spalten <br>
 	 * Ähnlich im IndexPart
-	 * 
+	 *
 	 * @param saveRowConfig
 	 * @param name
 	 * @param perspective
@@ -270,7 +247,7 @@ public class WFCSearchPart extends WFCFormPart {
 
 		natTable.commitAndCloseActiveCellEditor();
 
-		String tableName = form.getIndexView().getSource();
+		String tableName = context.get(Form.class).getIndexView().getSource();
 		String string = prefs.get(tableName + "." + name + ".table", null);
 		if (string == null || string.equals("")) {
 			return;
@@ -391,9 +368,9 @@ public class WFCSearchPart extends WFCFormPart {
 				if (v instanceof FilterValue && ((FilterValue) v).getFilterValue() != null && ((FilterValue) v).getFilterValue().getInstantValue() != null) {
 					FilterValue fv = (FilterValue) v;
 					Instant inst;
-					if (form.getIndexView().getColumn().get(i).getShortTime() != null) {
+					if (context.get(Form.class).getIndexView().getColumn().get(i).getShortTime() != null) {
 						inst = TimeUtil.getTime(fv.getUserInputWithoutOperator());
-					} else if (form.getIndexView().getColumn().get(i).getShortDate() != null) {
+					} else if (context.get(Form.class).getIndexView().getColumn().get(i).getShortDate() != null) {
 						inst = DateUtil.getDate(fv.getUserInputWithoutOperator());
 					} else {
 						inst = DateTimeUtil.getDateTime(fv.getUserInputWithoutOperator());
@@ -414,5 +391,29 @@ public class WFCSearchPart extends WFCFormPart {
 
 	public SelectionLayer getSelectionLayer() {
 		return selectionLayer;
+	}
+
+	@Override
+	public void createUserInterface(Composite parent, Form form) {
+		new FormToolkit(parent.getDisplay());
+		aero.minova.rcp.form.model.xsd.Column xsdColumn = new aero.minova.rcp.form.model.xsd.Column();
+		xsdColumn.setBoolean(Boolean.FALSE);
+		xsdColumn.setLabel("&");
+		xsdColumn.setName("&");
+		form.getIndexView().getColumn().add(0, xsdColumn);
+		context.set(Form.class, form);
+		data = dataFormService.getTableFromFormIndex(form);
+		getData().addRow();
+		// Wir setzen die Verundung auf false im Default-Fall!
+		getData().getRows().get(getData().getRows().size() - 1).setValue(new Value(false), 0);
+
+		parent.setLayout(new GridLayout());
+		mPart.getContext().set("NatTableDataSearchArea", getData());
+
+		natTable = createNatTable(parent, form, getData());
+
+		loadPrefs(Constants.LAST_STATE);
+		parent.requestLayout();
+
 	}
 }

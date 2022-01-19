@@ -1,6 +1,7 @@
 package aero.minova.rcp.dataservice;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import aero.minova.rcp.form.model.xsd.Field;
 import aero.minova.rcp.form.model.xsd.Form;
@@ -10,7 +11,7 @@ import aero.minova.rcp.model.Table;
 
 public interface IDataFormService {
 
-	Form getForm(String name);
+	CompletableFuture<Form> getForm(String name);
 
 	Table getTableFromFormIndex(Form form);
 

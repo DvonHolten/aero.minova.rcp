@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.xml.bind.JAXBException;
@@ -51,8 +51,11 @@ import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.resource.LocalResourceManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.ScrolledComposite;
+import org.eclipse.swt.events.MouseAdapter;
+import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
@@ -174,7 +177,8 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 	private LocalResourceManager resManager;
 	private WFCDetailCASRequestsUtil casRequestsUtil;
 
-	private IEclipseContext appContext;
+	@Inject
+	private IEclipseContext partContext;
 
 	private int detailWidth;
 
@@ -183,75 +187,29 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 	@Inject
 	EModelService eModelService;
-	MApplication mApplication;
 	private List<SectionGrid> sectionGrids = new ArrayList<>();
 	private ScrolledComposite scrolled;
 
-	@PostConstruct
-	public void postConstruct(Composite parent, MWindow window, MApplication mApp) {
-		resManager = new LocalResourceManager(JFaceResources.getResources(), parent);
-		composite = parent;
-		formToolkit = new FormToolkit(parent.getDisplay());
-		appContext = mApp.getContext();
-		mApplication = mApp;
-		getForm();
-		layoutForm(parent);
-		mDetail.setDetailAccessor(new DetailAccessor(mDetail));
-		mDetail.setClearAfterSave(form.getDetail().isClearAfterSave());
+	private MinovaSection headSection;
 
-		// Erstellen der Util-Klasse, welche sämtliche funktionen der Detailansicht steuert
-		casRequestsUtil = ContextInjectionFactory.make(WFCDetailCASRequestsUtil.class, mPerspective.getContext());
-		casRequestsUtil.initializeCasRequestUtil(getDetail(), mPerspective, this);
-		mPerspective.getContext().set(WFCDetailCASRequestsUtil.class, casRequestsUtil);
-		mPerspective.getContext().set(Constants.DETAIL_WIDTH, detailWidth);
-		TranslateUtil.translate(composite, translationService, locale);
+	@Inject
+	private MWindow window;
 
-		// Helper erst initialisieren, wenn casRequestsUtil erstellt wurde
-		if (mDetail.getHelper() != null) {
-			mDetail.getHelper().setControls(mDetail);
-		}
-
-		// Handler, der Dialog anzeigt wenn versucht wird, die Anwendung mit ungespeicherten Änderungen zu schließen. Außerdem wird
-		// "RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION" wieder auf false gesetzt, damit die Nachricht beim nächsten Starten wieder angezeigt wird
-		IWindowCloseHandler handler = mWindow -> {
-			@SuppressWarnings("unchecked")
-			List<MPerspective> pList = (List<MPerspective>) appContext.get(Constants.DIRTY_PERSPECTIVES);
-			if (pList != null && !pList.isEmpty()) {
-				StringBuilder listString = new StringBuilder();
-				for (MPerspective mPerspective : pList) {
-					listString.append(" - " + translationService.translate(mPerspective.getLabel(), null) + "\n");
-				}
-				MessageDialog dialog = new MessageDialog(Display.getDefault().getActiveShell(), translationService.translate("@msg.ChangesDialog", null), null,
-						translationService.translate("@msg.Close.DirtyMessage", null) + listString, MessageDialog.CONFIRM,
-						new String[] { translationService.translate("@Action.Discard", null), translationService.translate("@Abort", null) }, 0);
-
-				boolean res = dialog.open() == 0;
-				if (res) {
-					prefs.put(Constants.RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION, "false");
-				}
-				return res;
-			}
-			prefs.put(Constants.RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION, "false");
-
-			return true;
-		};
-		window.getContext().set(IWindowCloseHandler.class, handler);
-
-		openRestoringUIDialog();
-	}
+	@Inject
+	MApplication mApplication;
 
 	/**
 	 * Öffnet den "UI wird wiederhergestellt" Dialog, wenn er diese Session noch nicht geöffnet wurde und die Checkbox "NEVER_SHOW_RESTORING_UI_MESSAGE" nie
 	 * gewählt wurde
 	 */
 	private void openRestoringUIDialog() {
-		String prefName = form.getIndexView().getSource() + "." + Constants.LAST_STATE + ".index.size";
+		String prefName = partContext.get(Form.class).getIndexView().getSource() + "." + Constants.LAST_STATE + ".index.size";
 		boolean stateToLoad = prefs.get(prefName, null) != null; // Gibt es überhaupt etwaszu laden?
 		boolean neverShow = prefs.getBoolean(Constants.NEVER_SHOW_RESTORING_UI_MESSAGE, false);
 		boolean shownThisSession = prefs.getBoolean(Constants.RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION, false);
 		// Benötigt für UI-Tests damit sich in ihnen Dialog nicht öffnet, wird in LifeCycle gesetzt
-		boolean neverShowContext = appContext.get(Constants.NEVER_SHOW_RESTORING_UI_MESSAGE) != null
-				&& (boolean) appContext.get(Constants.NEVER_SHOW_RESTORING_UI_MESSAGE);
+		boolean neverShowContext = partContext.get(Constants.NEVER_SHOW_RESTORING_UI_MESSAGE) != null
+				&& (boolean) partContext.get(Constants.NEVER_SHOW_RESTORING_UI_MESSAGE);
 
 		if (stateToLoad && !neverShow && !shownThisSession && !neverShowContext) {
 			MessageDialogWithToggle mdwt = MessageDialogWithToggle.openInformation(Display.getCurrent().getActiveShell(), //
@@ -348,7 +306,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 		mPerspective.getContext().set(Constants.DETAIL_LAYOUT, detailLayout);
 
 		// Abschnitte der Hauptmaske und OPs erstellen
-		for (Object headOrPage : form.getDetail().getHeadAndPageAndGrid()) {
+		for (Object headOrPage : partContext.get(Form.class).getDetail().getHeadAndPageAndGrid()) {
 			HeadOrPageOrGridWrapper wrapper = new HeadOrPageOrGridWrapper(headOrPage);
 			layoutSection(wrap, wrapper);
 		}
@@ -370,7 +328,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 		part.getParent().setTabList(new Control[0]);
 
 		// Helper-Klasse initialisieren
-		initializeHelper(form.getHelperClass());
+		initializeHelper(partContext.get(Form.class).getHelperClass());
 	}
 
 	private void adjustScrollbar(ScrolledComposite scrolled, Composite wrap) {
@@ -420,24 +378,20 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 		for (Node settingsForMask : maskNode.getNode()) {
 			if (settingsForMask.getName().equals(Constants.OPTION_PAGES)) {
 				for (Node op : settingsForMask.getNode()) {
-					try {
+					CompletableFuture<Form> form2 = dataFormService.getForm(op.getName());
+					form2.thenAccept(form -> {
 						try {
-							Form opForm = dataFormService.getForm(op.getName());
-							addOPFromForm(opForm, parent, op);
-						} catch (IllegalArgumentException e) {
+							addOPFromForm(form, parent, op);
+						} catch (IllegalArgumentException | NoSuchFieldException e) {
 							try {
 								String opContent = dataService.getHashedFile(op.getName()).get();
 								Grid opGrid = XmlProcessor.get(opContent, Grid.class);
 								addOPFromGrid(opGrid, parent, op);
-							} catch (JAXBException e1) {
-								e1.printStackTrace();
+							} catch (NoSuchFieldException | InterruptedException | ExecutionException | JAXBException e1) {
+								MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", e1.getMessage());
 							}
 						}
-					} catch (InterruptedException | ExecutionException e) {
-						e.printStackTrace();
-					} catch (NoSuchFieldException e) {
-						MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", e.getMessage());
-					}
+					});
 				}
 			}
 		}
@@ -526,16 +480,37 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 		MinovaSection section;
 		if (headOrPageOrGrid.isHead) {
 			section = new MinovaSection(parent, ExpandableComposite.TITLE_BAR | ExpandableComposite.EXPANDED);
+			headSection = section;
 		} else {
 			section = new MinovaSection(parent, ExpandableComposite.TITLE_BAR | ExpandableComposite.EXPANDED | ExpandableComposite.TWISTIE);
+			section.getImageLink().addMouseListener(new MouseAdapter() {
+				@Override
+				public void mouseDoubleClick(MouseEvent e) {
+					section.setVisible(false);
+					Image image = section.getImageLink().getImage();
+					Control textClient = headSection.getTextClient();
+					ToolBar bar = (ToolBar) textClient;
+					ToolItem tItem = new ToolItem(bar, SWT.PUSH);
+					tItem.setImage(image);
+					tItem.addSelectionListener(SelectionListener.widgetSelectedAdapter(t -> {
+						section.setVisible(true);
+						tItem.dispose();
+						bar.requestLayout();
+						headSection.requestLayout();
+					}));
+					bar.requestLayout();
+					headSection.requestLayout();
+				}
+			});
+
 		}
 		section.setLayoutData(sectionData);
 
 		// Alten Zustand wiederherstellen
-		String prefsHorizontalFillKey = form.getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".horizontalFill";
+		String prefsHorizontalFillKey = partContext.get(Form.class).getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".horizontalFill";
 		String horizontalFillString = prefsDetailSections.get(prefsHorizontalFillKey, "false");
 		sectionData.horizontalFill = Boolean.parseBoolean(horizontalFillString);
-		String prefsExpandedString = form.getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".expanded";
+		String prefsExpandedString = partContext.get(Form.class).getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".expanded";
 		String expandedString = prefsDetailSections.get(prefsExpandedString, "true");
 		section.setExpanded(Boolean.parseBoolean(expandedString));
 
@@ -677,7 +652,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 	/**
 	 * Füllt das Item mit den Werten aus dem Knopf (Text, Tooptip, Icon) und fügt den Onclick Listener hinzu, wenn in der Maske definiert
-	 * 
+	 *
 	 * @param item
 	 * @param btn
 	 */
@@ -790,7 +765,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 	/**
 	 * Füllt das handledItem mit den Werten aus dem Knopf (Text, Tooptip, Icon), fügt den Command (und damit den Handler) sowie die benötigten Parameter hinzu
-	 * 
+	 *
 	 * @param handledItem
 	 * @param btn
 	 */
@@ -857,8 +832,8 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 	}
 
 	private Object findEventForID(String id) {
-		if (form.getEvents() != null) {
-			for (Onclick onclick : form.getEvents().getOnclick()) {
+		if (partContext.get(Form.class).getEvents() != null) {
+			for (Onclick onclick : partContext.get(Form.class).getEvents().getOnclick()) {
 				if (onclick.getRefid().equals(id)) {
 					return onclick;
 				}
@@ -1069,12 +1044,12 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 		mPart.setDirty(dirtyFlag);
 		@SuppressWarnings("unchecked")
-		List<MPerspective> pList = (List<MPerspective>) appContext.get(Constants.DIRTY_PERSPECTIVES);
+		List<MPerspective> pList = (List<MPerspective>) partContext.get(Constants.DIRTY_PERSPECTIVES);
 
 		if (dirtyFlag) {
 			if (pList == null) {
 				pList = new ArrayList<>();
-				appContext.set(Constants.DIRTY_PERSPECTIVES, pList);
+				partContext.set(Constants.DIRTY_PERSPECTIVES, pList);
 			}
 			if (!pList.contains(mPerspective)) {
 				pList.add(mPerspective);
@@ -1090,7 +1065,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 	/**
 	 * True wenn es Änderungen gab, False ansonsten
-	 * 
+	 *
 	 * @return
 	 */
 	public boolean getDirtyFlag() {
@@ -1153,7 +1128,7 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 		// Sections, ein-/ausgeklappt
 		for (MSection s : mDetail.getMSectionList()) {
 			Section section = ((SectionAccessor) s.getSectionAccessor()).getSection();
-			String prefsExpandedString = form.getTitle() + "." + section.getData(TRANSLATE_PROPERTY) + ".expanded";
+			String prefsExpandedString = partContext.get(Form.class).getTitle() + "." + section.getData(TRANSLATE_PROPERTY) + ".expanded";
 			prefsDetailSections.put(prefsExpandedString, section.isExpanded() + "");
 		}
 
@@ -1178,6 +1153,58 @@ public class WFCDetailPart extends WFCFormPart implements ValueChangeListener, G
 
 	public boolean isSelectAllControls() {
 		return selectAllControls;
+	}
+
+	@Override
+	public void createUserInterface(Composite parent, Form form) {
+		resManager = new LocalResourceManager(JFaceResources.getResources(), parent);
+		composite = parent;
+		formToolkit = new FormToolkit(parent.getDisplay());
+		layoutForm(parent);
+		mDetail.setDetailAccessor(new DetailAccessor(mDetail));
+		mDetail.setClearAfterSave(form.getDetail().isClearAfterSave());
+
+		// Erstellen der Util-Klasse, welche sämtliche funktionen der Detailansicht steuert
+		casRequestsUtil = ContextInjectionFactory.make(WFCDetailCASRequestsUtil.class, mPerspective.getContext());
+		casRequestsUtil.initializeCasRequestUtil(getDetail(), mPerspective, this);
+		mPerspective.getContext().set(WFCDetailCASRequestsUtil.class, casRequestsUtil);
+		mPerspective.getContext().set(Constants.DETAIL_WIDTH, detailWidth);
+		TranslateUtil.translate(composite, translationService, locale);
+
+		// Helper erst initialisieren, wenn casRequestsUtil erstellt wurde
+		if (mDetail.getHelper() != null) {
+			mDetail.getHelper().setControls(mDetail);
+		}
+
+		// Handler, der Dialog anzeigt wenn versucht wird, die Anwendung mit ungespeicherten Änderungen zu schließen. Außerdem wird
+		// "RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION" wieder auf false gesetzt, damit die Nachricht beim nächsten Starten wieder angezeigt wird
+		IWindowCloseHandler handler = mWindow -> {
+			@SuppressWarnings("unchecked")
+			List<MPerspective> pList = (List<MPerspective>) partContext.get(Constants.DIRTY_PERSPECTIVES);
+			if (pList != null && !pList.isEmpty()) {
+				StringBuilder listString = new StringBuilder();
+				for (MPerspective mPerspective : pList) {
+					listString.append(" - " + translationService.translate(mPerspective.getLabel(), null) + "\n");
+				}
+				MessageDialog dialog = new MessageDialog(Display.getDefault().getActiveShell(), translationService.translate("@msg.ChangesDialog", null), null,
+						translationService.translate("@msg.Close.DirtyMessage", null) + listString, MessageDialog.CONFIRM,
+						new String[] { translationService.translate("@Action.Discard", null), translationService.translate("@Abort", null) }, 0);
+
+				boolean res = dialog.open() == 0;
+				if (res) {
+					prefs.put(Constants.RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION, "false");
+				}
+				return res;
+			}
+			prefs.put(Constants.RESTORING_UI_MESSAGE_SHOWN_THIS_SESSION, "false");
+
+			return true;
+		};
+		window.getContext().set(IWindowCloseHandler.class, handler);
+
+		openRestoringUIDialog();
+		parent.requestLayout();
+
 	}
 
 }

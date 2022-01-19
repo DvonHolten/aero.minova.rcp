@@ -50,14 +50,15 @@ public class BlockHandler implements ValueChangeListener {
 
 	/**
 	 * Button entsprechend der Maske anzeigen
-	 * 
+	 *
 	 * @param part
 	 * @return
 	 */
 	@Evaluate
 	public boolean visible(MPart part) {
 		this.detail = (WFCDetailPart) part.getObject();
-		return detail.getForm().getDetail().isButtonBlockVisible();
+//		return detail.getForm().getDetail().isButtonBlockVisible();
+		return false;
 	}
 
 	@CanExecute

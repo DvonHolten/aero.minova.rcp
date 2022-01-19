@@ -8,7 +8,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 
@@ -24,7 +23,6 @@ import org.eclipse.e4.ui.di.PersistState;
 import org.eclipse.e4.ui.di.UIEventTopic;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspective;
 import org.eclipse.e4.ui.model.application.ui.basic.MPart;
-import org.eclipse.e4.ui.workbench.modeling.EModelService;
 import org.eclipse.e4.ui.workbench.modeling.ESelectionService;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.layout.GridDataFactory;
@@ -142,7 +140,7 @@ public class WFCIndexPart extends WFCFormPart {
 
 	private NatTable natTable;
 	private BodyLayerStack<Row> bodyLayerStack;
-	private IEclipseContext context;
+	private IEclipseContext partContext;
 
 	@Inject
 	TranslationService translationService;
@@ -166,18 +164,6 @@ public class WFCIndexPart extends WFCFormPart {
 
 	private SelectionThread selectionThread;
 
-	@PostConstruct
-	public void createComposite(Composite parent, EModelService modelService) {
-		new FormToolkit(parent.getDisplay());
-		getForm();
-		data = dataFormService.getTableFromFormIndex(form);
-
-		parent.setLayout(new GridLayout());
-
-		natTable = createNatTable(parent, form, getData(), selectionService, mPerspective.getContext());
-		loadPrefs(Constants.LAST_STATE, autoLoadIndex);
-	}
-
 	@PersistState
 	public void persistState() {
 		savePrefs(true, Constants.LAST_STATE);
@@ -198,7 +184,7 @@ public class WFCIndexPart extends WFCFormPart {
 			return;
 		}
 
-		String tableName = form.getIndexView().getSource();
+		String tableName = partContext.get(Form.class).getIndexView().getSource();
 
 		// Spaltenanordung und -breite
 		String size = "";
@@ -242,7 +228,7 @@ public class WFCIndexPart extends WFCFormPart {
 
 	public void loadPrefs(String name, boolean loadIndex) {
 		// Spaltenanordung und -breite
-		String tableName = form.getIndexView().getSource();
+		String tableName = partContext.get(Form.class).getIndexView().getSource();
 		String string = prefs.get(tableName + "." + name + ".index.size", null);
 		if (string != null && !string.equals("")) {
 
@@ -375,7 +361,7 @@ public class WFCIndexPart extends WFCFormPart {
 
 	public NatTable createNatTable(Composite parent, Form form, Table table, ESelectionService selectionService, IEclipseContext context) {
 
-		this.context = context;
+		this.partContext = context;
 
 		// Datenmodel für die Eingaben
 		ConfigRegistry configRegistry = new ConfigRegistry();
@@ -704,12 +690,12 @@ public class WFCIndexPart extends WFCFormPart {
 			List c = SelectionUtils.getSelectedRowObjects(getSelectionLayer(), getBodyLayerStack().getBodyDataProvider(), false);
 			List<Row> collection = (List<Row>) c.stream().filter(p -> (p instanceof Row)).collect(Collectors.toList());
 
-			Table t = dataFormService.getTableFromFormIndex(form);
+			Table t = dataFormService.getTableFromFormIndex(partContext.get(Form.class));
 			for (Row r : collection) {
 				t.addRow(r);
 			}
 			if (!collection.isEmpty()) {
-				context.set(Constants.BROKER_ACTIVEROWS, t);
+				partContext.set(Constants.BROKER_ACTIVEROWS, t);
 			}
 		}
 	}
@@ -863,5 +849,16 @@ public class WFCIndexPart extends WFCFormPart {
 
 	public DefaultColumnHeaderDataLayer getColumnHeaderDataLayer() {
 		return columnHeaderDataLayer;
+	}
+
+	@Override
+	public void createUserInterface(Composite parent, Form form) {
+		new FormToolkit(parent.getDisplay());
+		data = dataFormService.getTableFromFormIndex(form);
+		parent.setLayout(new GridLayout());
+		natTable = createNatTable(parent, form, getData(), selectionService, mPerspective.getContext());
+		loadPrefs(Constants.LAST_STATE, autoLoadIndex);
+		parent.requestLayout();
+
 	}
 }
