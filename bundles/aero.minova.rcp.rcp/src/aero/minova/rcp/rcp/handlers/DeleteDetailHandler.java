@@ -16,6 +16,7 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.widgets.Display;
 
 import aero.minova.rcp.constants.Constants;
+import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.model.form.MDetail;
 import aero.minova.rcp.preferences.ApplicationPreferences;
 import aero.minova.rcp.rcp.parts.WFCDetailPart;
@@ -34,8 +35,14 @@ public class DeleteDetailHandler {
 
 	@CanExecute
 	public boolean canExecute(MPart part, @Named(IServiceConstants.ACTIVE_SELECTION) @Optional Object selection) {
+		if (part.getContext().get(Form.class) == null) {
+			return false;
+		}
 		if (part.getObject() instanceof WFCDetailPart) {
 			MDetail detail = ((WFCDetailPart) part.getObject()).getDetail();
+			if (detail.getField("KeyLong") == null) {
+				return false;
+			}
 			return detail.getField("KeyLong").getValue() != null;
 		}
 		return false;

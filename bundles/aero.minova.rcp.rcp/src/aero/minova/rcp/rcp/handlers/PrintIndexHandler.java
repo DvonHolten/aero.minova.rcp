@@ -116,7 +116,10 @@ public class PrintIndexHandler {
 		Object o = mpart.getObject();
 		boolean hasRows = false;
 		if (o instanceof WFCIndexPart) {
-			@SuppressWarnings("unchecked")
+			if (((WFCIndexPart) o).getBodyLayerStack() == null) {
+				return false;
+			}
+
 			List<Row> dataList = ((WFCIndexPart) o).getBodyLayerStack().getSortedList();
 			hasRows = !dataList.isEmpty();
 		}

@@ -15,6 +15,7 @@ import org.eclipse.e4.ui.model.application.ui.basic.MPart;
 import org.eclipse.e4.ui.services.IServiceConstants;
 
 import aero.minova.rcp.constants.Constants;
+import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.model.Column;
 import aero.minova.rcp.model.KeyType;
 import aero.minova.rcp.model.Row;
@@ -42,8 +43,12 @@ public class CopyHandler {
 	@Evaluate
 	public boolean visible(MPart part) {
 		detail = (WFCDetailPart) part.getObject();
-//		return detail.getForm().getDetail().isButtonCopyVisible();
-		return false;
+		Form form = part.getContext().get(Form.class);
+		if (form == null) {
+			return false;
+		} else {
+			return form.getDetail().isButtonBlockVisible();
+		}
 	}
 
 	@CanExecute

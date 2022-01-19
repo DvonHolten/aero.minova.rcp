@@ -160,7 +160,9 @@ public class PrintDetailHandler {
 		WFCDetailPart wfcDetail = (WFCDetailPart) mpart.getObject();
 		MDetail detail = wfcDetail.getDetail();
 		MField field = detail.getField("KeyLong");
-
+		if (field == null) {
+			return false;
+		}
 		return field.getValue() != null;
 
 	}

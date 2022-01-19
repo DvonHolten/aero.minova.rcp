@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Inject;
 import javax.inject.Named;
 
+import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.core.di.annotations.CanExecute;
 import org.eclipse.e4.core.di.annotations.Evaluate;
 import org.eclipse.e4.core.di.annotations.Execute;
@@ -19,6 +20,7 @@ import org.eclipse.e4.ui.services.IServiceConstants;
 import aero.minova.rcp.constants.Constants;
 import aero.minova.rcp.dataservice.IDataFormService;
 import aero.minova.rcp.dataservice.IDataService;
+import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.model.Column;
 import aero.minova.rcp.model.SqlProcedureResult;
 import aero.minova.rcp.model.Table;
@@ -57,8 +59,12 @@ public class BlockHandler implements ValueChangeListener {
 	@Evaluate
 	public boolean visible(MPart part) {
 		this.detail = (WFCDetailPart) part.getObject();
-//		return detail.getForm().getDetail().isButtonBlockVisible();
-		return false;
+		Form form = part.getContext().get(Form.class);
+		if (form == null) {
+			return false;
+		} else {
+			return form.getDetail().isButtonBlockVisible();
+		}
 	}
 
 	@CanExecute
@@ -88,7 +94,7 @@ public class BlockHandler implements ValueChangeListener {
 	}
 
 	@Execute
-	public void execute() {
+	public void execute(IEclipseContext context) {
 
 		// Dirty-Flag verhindern
 		Table selectedTable = detail.getRequestUtil().getSelectedTable();
@@ -98,7 +104,7 @@ public class BlockHandler implements ValueChangeListener {
 		blocked.setValue(new Value(blockedToolItem.isSelected()), false);
 
 		// Blocked-Prozedur aufrufen
-		Table formTable = dataFormService.getTableFromFormDetail(detail.getForm(), Constants.BLOCK_REQUEST);
+		Table formTable = dataFormService.getTableFromFormDetail(context.get(Form.class), Constants.BLOCK_REQUEST);
 		RowBuilder rb = RowBuilder.newRow();
 		for (Column c : formTable.getColumns()) {
 			rb.withValue(detail.getDetail().getField(c.getName()).getValue());
