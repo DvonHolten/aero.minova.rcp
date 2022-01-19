@@ -50,6 +50,31 @@
 				  </products>
 				</configuration>
 			  </plugin>
+
+			<plugin>
+				<groupId>name.abuchen</groupId>
+				<artifactId>fix-info-plist-maven-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+				  <execution>
+					<id>fix-info-plist</id>
+					<phase>package</phase>
+					<goals>
+					  <goal>fix-info-plist</goal>
+					</goals>
+				  </execution>
+				</executions>
+				<configuration>
+				  <productId>WebFatClient</productId>
+				  <appName>WFC.app</appName>
+				  <properties>
+					<property>
+					  <name>CFBundleGetInfoString</name>
+					  <value>Minova</value>
+					</property>
+				  </properties>
+				</configuration>
+			  </plugin>
 		</plugins>
 	</build>
 </project>
