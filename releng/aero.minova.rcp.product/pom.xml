@@ -72,6 +72,11 @@
 					  <name>CFBundleGetInfoString</name>
 					  <value>Minova</value>
 					</property>
+
+					<property>
+						<name>CFBundleLocalizations</name>
+						<value>[English,French,German]</value>
+					  </property>
 				  </properties>
 				</configuration>
 			  </plugin>
