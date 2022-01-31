@@ -10,7 +10,9 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 import org.eclipse.e4.core.di.annotations.CanExecute;
+import org.eclipse.e4.core.di.annotations.Evaluate;
 import org.eclipse.e4.core.di.annotations.Execute;
+import org.eclipse.e4.core.di.extensions.Preference;
 import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.di.UISynchronize;
@@ -34,10 +36,15 @@ import aero.minova.rcp.model.builder.RowBuilder;
 import aero.minova.rcp.model.builder.TableBuilder;
 import aero.minova.rcp.model.form.MDetail;
 import aero.minova.rcp.model.form.MField;
+import aero.minova.rcp.preferences.ApplicationPreferences;
 import aero.minova.rcp.rcp.parts.WFCDetailPart;
 import aero.minova.rcp.rcp.util.PrintUtil;
 
 public class PrintDetailHandler {
+
+	@Inject
+	@Preference(nodePath = ApplicationPreferences.PREFERENCES_NODE, value = ApplicationPreferences.DISABLE_PREVIEW)
+	public boolean disablePreview;
 
 	@Inject
 	protected IDataService dataService;
@@ -67,6 +74,20 @@ public class PrintDetailHandler {
 
 	boolean reportsFolderExists = false;
 
+	/**
+	 * Button nur anzeigen, wenn in xbs definiert ist, dass gedruckt werden kann
+	 *
+	 * @param part
+	 * @return
+	 */
+	@Evaluate
+	public boolean visible(MPerspective mPerspective) {
+		String maskName = mPerspective.getPersistedState().get(Constants.FORM_NAME);
+		Preferences preferences = (Preferences) mApplication.getTransientData().get(Constants.XBS_FILE_NAME);
+		Node maskNode = XBSUtil.getNodeWithName(preferences, maskName);
+		return maskNode != null;
+	}
+
 	@PostConstruct
 	public void downloadReportsZip() {
 		try {
@@ -79,15 +100,15 @@ public class PrintDetailHandler {
 	@CanExecute
 	public boolean canExecute(MPart mpart, MPerspective mPerspective) {
 
-		String maskName = mPerspective.getPersistedState().get(Constants.FORM_NAME);
-		String procedureName = procedureNames.get(maskName);
-		String reportName = reportNames.get(maskName);
-		String rootElement = rootElements.get(maskName);
-
 		// Überprüfen, ob reports Ordner geladen wurde
 		if (!reportsFolderExists) {
 			return false;
 		}
+
+		String maskName = mPerspective.getPersistedState().get(Constants.FORM_NAME);
+		String procedureName = procedureNames.get(maskName);
+		String reportName = reportNames.get(maskName);
+		String rootElement = rootElements.get(maskName);
 
 		// Wenn diese Maske noch nicht geöffnet wurde application.xbs überprüfen
 		if (!checkedMasks.contains(maskName)) {
@@ -146,28 +167,23 @@ public class PrintDetailHandler {
 
 	@Execute
 	public void execute(MPart mpart, MWindow window, EModelService modelService, EPartService partService, MPerspective mPerspective) {
-		try {
-			if (!(mpart.getObject() instanceof WFCDetailPart)) {
-				return;
-			}
-
-			// Keylong-Wert finden
-			String maskName = mPerspective.getPersistedState().get(Constants.FORM_NAME);
-			WFCDetailPart wfcDetail = (WFCDetailPart) mpart.getObject();
-			MField field = wfcDetail.getDetail().getField("KeyLong");
-			int integerValue = field.getValue().getIntegerValue();
-
-			// Tabelle ans CAS aufbauen
-			Table table = TableBuilder.newTable(procedureNames.get(maskName)).withColumn("KeyLong", DataType.STRING).create();
-			Row row = RowBuilder.newRow().withValue("" + integerValue).create();
-			table.addRow(row);
-
-			PrintUtil.getXMLAndShowPDF(dataService, modelService, partService, translationService, window, broker, sync, table, rootElements.get(maskName),
-					"reports/" + reportNames.get(maskName), "reports/" + maskName.replace(".xml", "") + "_Detail.pdf");
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			broker.post(Constants.BROKER_SHOWERRORMESSAGE, translationService.translate("@msg.ErrorShowingFile", null));
+		if (!(mpart.getObject() instanceof WFCDetailPart)) {
+			return;
 		}
-	}
 
+		// Keylong-Wert finden
+		String maskName = mPerspective.getPersistedState().get(Constants.FORM_NAME);
+		WFCDetailPart wfcDetail = (WFCDetailPart) mpart.getObject();
+		MField field = wfcDetail.getDetail().getField("KeyLong");
+		int integerValue = field.getValue().getIntegerValue();
+
+		// Tabelle ans CAS aufbauen
+		Table table = TableBuilder.newTable(procedureNames.get(maskName)).withColumn("KeyLong", DataType.STRING).create();
+		Row row = RowBuilder.newRow().withValue("" + integerValue).create();
+		table.addRow(row);
+
+		PrintUtil.getXMLAndShowPDF(dataService, modelService, partService, translationService, window, broker, sync, table, rootElements.get(maskName),
+				"reports/" + reportNames.get(maskName), "outputReports/" + maskName.replace(".xml", "") + "_" + integerValue + "_Detail.pdf", mPerspective,
+				disablePreview);
+	}
 }

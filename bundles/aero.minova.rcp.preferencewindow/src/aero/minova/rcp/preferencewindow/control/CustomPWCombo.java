@@ -4,12 +4,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.e4.core.di.annotations.Optional;
 import org.eclipse.nebula.widgets.opal.preferencewindow.PreferenceWindow;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.layout.GridData;
+import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Label;
 
 public class CustomPWCombo extends CustomPWWidget {
 	private final List<Object> data;
@@ -18,21 +21,25 @@ public class CustomPWCombo extends CustomPWWidget {
 	/**
 	 * Constructor
 	 *
-	 * @param label associated label
-	 * @param propertyKey associated key
+	 * @param label
+	 *            associated label
+	 * @param propertyKey
+	 *            associated key
 	 */
-	public CustomPWCombo(final String label, final String propertyKey, final Object... values) {
-		this(label, propertyKey, false, values);
+	public CustomPWCombo(final String label, @Optional String tooltip, final String propertyKey, final Object... values) {
+		this(label, tooltip, propertyKey, false, values);
 	}
 
 	/**
 	 * Constructor
 	 *
-	 * @param label associated label
-	 * @param propertyKey associated key
+	 * @param label
+	 *            associated label
+	 * @param propertyKey
+	 *            associated key
 	 */
-	public CustomPWCombo(final String label, final String propertyKey, final boolean editable, final Object... values) {
-		super(label, propertyKey, label == null ? 1 : 2, false);
+	public CustomPWCombo(final String label, @Optional String tooltip, final String propertyKey, final boolean editable, final Object... values) {
+		super(label, tooltip, propertyKey, label == null ? 1 : 2, false);
 		data = new ArrayList<Object>(Arrays.asList(values));
 		this.editable = editable;
 	}
@@ -44,7 +51,14 @@ public class CustomPWCombo extends CustomPWWidget {
 	public Control build(final Composite parent) {
 		buildLabel(parent, GridData.CENTER);
 
-		final CCombo combo = new CCombo(parent, SWT.BORDER | (editable ? SWT.NONE : SWT.READ_ONLY));
+		Composite cmp = new Composite(parent, SWT.NONE);
+		cmp.setLayout(new GridLayout(2, false));
+		final GridData cmpGridData = new GridData(SWT.FILL, SWT.CENTER, true, false);
+		cmp.setLayoutData(cmpGridData);
+		addControl(cmp);
+
+		final CCombo combo = new CCombo(cmp, SWT.BORDER | (editable ? SWT.NONE : SWT.READ_ONLY));
+		combo.setToolTipText(getTooltip());
 		addControl(combo);
 
 		for (int i = 0; i < data.size(); i++) {
@@ -59,6 +73,11 @@ public class CustomPWCombo extends CustomPWWidget {
 			PreferenceWindow.getInstance().setValue(getCustomPropertyKey(), CustomPWCombo.this.data.get(CustomPWCombo.this.data.indexOf(combo.getText())));
 		});
 
+		Label icon = new Label(cmp, SWT.NONE);
+		if (getTooltip() != null) {
+			createTooltipInfoIcon(icon);
+		}
+
 		return combo;
 	}
 
@@ -72,12 +91,14 @@ public class CustomPWCombo extends CustomPWWidget {
 			PreferenceWindow.getInstance().setValue(getCustomPropertyKey(), null);
 		} else {
 			if (editable && !(value instanceof String)) {
-				throw new UnsupportedOperationException("The property '" + getCustomPropertyKey() + "' has to be a String because it is associated to an editable combo");
+				throw new UnsupportedOperationException(
+						"The property '" + getCustomPropertyKey() + "' has to be a String because it is associated to an editable combo");
 			}
 
 			if (!data.isEmpty()) {
 				if (!value.getClass().equals(data.get(0).getClass())) {
-					throw new UnsupportedOperationException("The property '" + getCustomPropertyKey() + "' has to be a " + data.get(0).getClass() + " because it is associated to a combo");
+					throw new UnsupportedOperationException(
+							"The property '" + getCustomPropertyKey() + "' has to be a " + data.get(0).getClass() + " because it is associated to a combo");
 				}
 			}
 

@@ -1,5 +1,7 @@
 package aero.minova.rcp.rcp.handlers;
 
+import static aero.minova.rcp.rcp.fields.FieldUtil.TRANSLATE_PROPERTY;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -118,9 +120,8 @@ public class PerspectiveControl {
 				continue;
 			}
 
-			// Perspektive war geöffnet
 			List<MPerspective> perspectives = modelService.findElements(window, id, MPerspective.class);
-			if (!perspectives.isEmpty()) {
+			if (!perspectives.isEmpty()) { // Perspektive war geöffnet
 				MPerspective perspective = perspectives.get(0);
 				if (perspective.isToBeRendered()) {
 					addPerspectiveShortcut(perspective.getElementId(), //
@@ -135,7 +136,7 @@ public class PerspectiveControl {
 					setSelectedElement(perspective);
 				}
 
-			} else { // Perspektive war angeheftet
+			} else if (!prefsKeptPerspectives.get(id + Constants.KEPT_PERSPECTIVE_FORMNAME, "").equals("")) { // Perspektive war angeheftet
 				addPerspectiveShortcut(id, //
 						prefsKeptPerspectives.get(id + Constants.KEPT_PERSPECTIVE_FORMNAME, ""), //
 						prefsKeptPerspectives.get(id + Constants.KEPT_PERSPECTIVE_FORMLABEL, ""), //
@@ -152,7 +153,7 @@ public class PerspectiveControl {
 	@Inject
 	@Optional
 	private void getNotified(@Named(TranslationService.LOCALE) Locale s) {
-		translate(translationService);
+		translate();
 	}
 
 	@Inject
@@ -165,8 +166,16 @@ public class PerspectiveControl {
 
 	private void translate() {
 		for (ToolItem item : toolBar.getItems()) {
-			String value = translationService.translate(item.getText(), null);
-			item.setText(value);
+			String property = (String) item.getData(TRANSLATE_PROPERTY);
+			if (property == null) {
+				continue;
+			}
+			String value = translationService.translate(property, null);
+
+			if (item.getImage() == null) {
+				item.setText(value);
+			}
+			item.setToolTipText(value);
 		}
 		toolBar.pack(true);
 	}
@@ -178,21 +187,22 @@ public class PerspectiveControl {
 			boolean openAll) {
 		String keptPerspective = prefsKeptPerspectives.get(perspectiveId + Constants.KEPT_PERSPECTIVE_FORMNAME, "");
 
-		if (keptPerspective.isBlank() || openAll) {
+		shortcut = getToolItemFor(perspectiveId);
+
+		// Wenn der Shortcut schon existiert soll er nicht nochmal erstellt werden
+		if (shortcut == null && (keptPerspective.isBlank() || openAll)) {
 			openToolbarItems.add(perspectiveId);
 			saveToolbarOrder();
 
 			shortcut = new ToolItem(toolBar, SWT.RADIO);
 			shortcut.setData(perspectiveId);
-			ImageDescriptor descriptor = ImageUtil.getImageDescriptor(iconURI, true);
+			shortcut.setData(TRANSLATE_PROPERTY, formLable);
 
+			ImageDescriptor descriptor = ImageUtil.getImageDescriptor(iconURI, true);
 			if (descriptor != null && !descriptor.equals(ImageDescriptor.getMissingImageDescriptor())) {
 				shortcut.setImage(descriptor.createImage());
-			} else {
-				shortcut.setText(localizedLabel != null ? localizedLabel : "");
 			}
 
-			shortcut.setToolTipText(localizedTooltip);
 			shortcut.addSelectionListener(new SelectionAdapter() {
 				@Override
 				public void widgetSelected(SelectionEvent event) {
@@ -206,9 +216,8 @@ public class PerspectiveControl {
 					handlerService.executeHandler(command);
 				}
 			});
-		} else {
-			shortcut = getToolItemFor(perspectiveId);
 		}
+		translate();
 	}
 
 	/*
@@ -372,6 +381,11 @@ public class PerspectiveControl {
 		} else {
 			ShowErrorDialogHandler.execute(shell, "Error", translate, et.getT());
 		}
+
+		// Wenn möglich Search-Part aktivieren, um wiederkehrende Fehler zu vermeiden
+		String commandID = Constants.AERO_MINOVA_RCP_RCP_COMMAND_SELECTSEARCHPART;
+		ParameterizedCommand cmd = commandService.createCommand(commandID, null);
+		handlerService.executeHandler(cmd);
 	}
 
 	@Inject

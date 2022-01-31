@@ -28,6 +28,10 @@ public class ModelToViewModel {
 		}
 
 		f.setPrimary(KeyType.PRIMARY.toString().equalsIgnoreCase(field.getKeyType()));
+		f.setKeyTypeUser(KeyType.USER.toString().equalsIgnoreCase(field.getKeyType()));
+		if (f.isKeyTypeUser()) { // Felder mit keyType="user" sind immer Pflichtfelder
+			f.setOriginalRequired(true);
+		}
 
 		return f;
 	}
@@ -89,6 +93,7 @@ public class ModelToViewModel {
 		if (field.getText() != null) {
 			MField f = new MTextField();
 			f.setFillToRight("toright".equals(field.getFill()));
+			f.setFillHorizontal("horizontal".equals(field.getFill()));
 			f.setMaxTextLength(field.getText().getLength());
 			return f;
 		}

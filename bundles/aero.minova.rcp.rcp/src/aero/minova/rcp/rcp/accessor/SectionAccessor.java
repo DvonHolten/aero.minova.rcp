@@ -1,16 +1,15 @@
 package aero.minova.rcp.rcp.accessor;
 
-import org.eclipse.ui.forms.widgets.Section;
-
+import aero.minova.rcp.css.widgets.MinovaSection;
 import aero.minova.rcp.model.form.ISectionAccessor;
 import aero.minova.rcp.model.form.MSection;
 
 public class SectionAccessor implements ISectionAccessor {
 
 	private MSection mSection;
-	private Section section;
+	private MinovaSection section;
 
-	public SectionAccessor(MSection mSection, Section section) {
+	public SectionAccessor(MSection mSection, MinovaSection section) {
 		this.mSection = mSection;
 		this.section = section;
 	}
@@ -23,24 +22,21 @@ public class SectionAccessor implements ISectionAccessor {
 		this.mSection = mSection;
 	}
 
-	public Section getSection() {
+	public MinovaSection getSection() {
 		return section;
 	}
 
-	public void setSection(Section section) {
+	public void setSection(MinovaSection section) {
 		this.section = section;
 	}
 
 	/**
-	 * Ändert die Sichtbarkeit zum gegeben Wert. Außerdem wird die Section ein-/ausgeklappt damit sie weniger Platz wegnimmt <br>
-	 * TODO: Komplett entfernen, nicht nur ausblenden
+	 * Ändert die Sichtbarkeit zum gegeben Wert.
 	 * 
 	 * @param visible
 	 */
 	@Override
 	public void setVisible(boolean visible) {
 		section.setVisible(visible);
-		section.setExpanded(visible);
 	}
-
 }

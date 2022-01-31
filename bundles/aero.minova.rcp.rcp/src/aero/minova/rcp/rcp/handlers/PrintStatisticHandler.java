@@ -7,6 +7,7 @@ import javax.inject.Inject;
 
 import org.eclipse.e4.core.di.annotations.CanExecute;
 import org.eclipse.e4.core.di.annotations.Execute;
+import org.eclipse.e4.core.di.extensions.Preference;
 import org.eclipse.e4.core.services.events.IEventBroker;
 import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.di.UISynchronize;
@@ -17,6 +18,7 @@ import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
 import org.eclipse.e4.ui.workbench.UIEvents;
 import org.eclipse.e4.ui.workbench.modeling.EModelService;
 import org.eclipse.e4.ui.workbench.modeling.EPartService;
+import org.eclipse.swt.widgets.Display;
 
 import aero.minova.rcp.constants.Constants;
 import aero.minova.rcp.dataservice.IDataService;
@@ -35,10 +37,15 @@ import aero.minova.rcp.model.event.ValueChangeEvent;
 import aero.minova.rcp.model.event.ValueChangeListener;
 import aero.minova.rcp.model.form.MDetail;
 import aero.minova.rcp.model.form.MField;
+import aero.minova.rcp.preferences.ApplicationPreferences;
 import aero.minova.rcp.rcp.parts.WFCStatisticDetailPart;
 import aero.minova.rcp.rcp.util.PrintUtil;
 
 public class PrintStatisticHandler implements ValueChangeListener {
+
+	@Inject
+	@Preference(nodePath = ApplicationPreferences.PREFERENCES_NODE, value = ApplicationPreferences.DISABLE_PREVIEW)
+	public boolean disablePreview;
 
 	@Inject
 	protected IDataService dataService;
@@ -140,11 +147,13 @@ public class PrintStatisticHandler implements ValueChangeListener {
 			table.addRow(row);
 
 			PrintUtil.getXMLAndShowPDF(dataService, modelService, partService, translationService, window, broker, sync, table, rootElement,
-					"reports/" + reportName, "reports/" + statisticPart.getCurrentRow().getValue(0).getStringValue() + ".pdf");
+					"reports/" + reportName, "outputReports/" + statisticPart.getCurrentRow().getValue(0).getStringValue() + ".pdf", mPerspective,
+					disablePreview);
 
 		} catch (Exception ex) {
 			ex.printStackTrace();
-			broker.post(Constants.BROKER_SHOWERRORMESSAGE, translationService.translate("@msg.ErrorShowingFile", null));
+			ShowErrorDialogHandler.execute(Display.getCurrent().getActiveShell(), translationService.translate("@Error", null),
+					translationService.translate("@msg.ErrorShowingFile", null), ex);
 		}
 	}
 
