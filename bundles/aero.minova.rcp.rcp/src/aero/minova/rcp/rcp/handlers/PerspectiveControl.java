@@ -165,9 +165,10 @@ public class PerspectiveControl {
 	}
 
 	private void translate() {
-		if(toolBar == null) {
+		if (toolBar == null) {
 			return;
 		}
+
 		for (ToolItem item : toolBar.getItems()) {
 			String property = (String) item.getData(TRANSLATE_PROPERTY);
 			if (property == null) {
