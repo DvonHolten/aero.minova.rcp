@@ -12,21 +12,37 @@ public class NumberFieldUtil {
 	/**
 	 * generiert aus den Properties
 	 * <ul>
-	 * <li>{@link NumberFieldUtil#FIELD_MAX_VALUE}</li>
-	 * <li>{@link NumberFieldUtil#FIELD_MIN_VALUE}</li>
-	 * <li>{@link NumberFieldUtil#FIELD_DECIMALS}</li>
+	 * <li>{@link FieldUtil#FIELD_MIN_VALUE}</li>
+	 * <li>{@link FieldUtil#FIELD_MAX_VALUE}</li>
+	 * <li>{@link FieldUtil#FIELD_DECIMALS}</li>
+	 * <li>{@link FieldUtil#TRANSLATE_LOCALE}</li>
 	 * </ul>
-	 * den Messagetext, der angezeigt wird, sobald das Feld leer ist.
-	 * 
-	 * @param text
+	 * des übergebenen Text-Widgets den Tooltip-Text für den Wert 0.0
+	 * und trägt ihn in das Text-Widget ein.
+	 * <br>
+	 * Das Dezimal-Trennzeichen ist z.B. in Deutschland ein Komma,
+	 * in vielen anderen Regionen ein Punkt.<br>
+	 * Tausender-Trennzeichen werden hier nicht behandelt.
+	 *
+	 * <br>ToDo - ich würde setMessage() wegfallen lassen.
+	 * Der Tooltip '0.0' ist wenig hilfreich, und es wird dadurch erschwert,
+	 * dass der Aufrufer selbst eine bessere Message an das Text-Widget hängt.
+	 *
+	 * <br>ToDo - Vorzeichen?
+	 *
+	 * @param text das einzustellende Text-Widget
 	 */
 	public static void setMessage(Text text) {
+
+		// Ziffern rechts vom Dezimal-Trennzeichen, Nachkomma-Stellen
 		int decimals = (int) text.getData(FieldUtil.FIELD_DECIMALS);
 		double maximum = (double) text.getData(FieldUtil.FIELD_MAX_VALUE);
+
+		// eingestellte Locale definiert das Dezimal-Trennzeichen
 		Locale locale = (Locale) text.getData(FieldUtil.TRANSLATE_LOCALE);
 
-		int integer = 0;
-		if (maximum >= Float.MAX_VALUE) {
+		int integer = 0; 	// Ziffern links vom Dezimal-Trennzeichen
+		if (maximum >= Float.MAX_VALUE) { // bisschen unklar, was hier abgeht
 			integer = 9 - decimals;
 		} else {
 			while (maximum > 1) {
