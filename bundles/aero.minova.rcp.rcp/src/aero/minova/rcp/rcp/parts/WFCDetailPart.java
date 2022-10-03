@@ -24,6 +24,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory;
 import org.eclipse.e4.core.contexts.IEclipseContext;
 import org.eclipse.e4.core.di.annotations.Optional;
 import org.eclipse.e4.core.di.extensions.Preference;
+import org.eclipse.e4.core.services.log.Logger;
 import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.di.PersistState;
 import org.eclipse.e4.ui.model.application.MApplication;
@@ -79,6 +80,7 @@ import aero.minova.rcp.css.widgets.MinovaSection;
 import aero.minova.rcp.css.widgets.MinovaSectionData;
 import aero.minova.rcp.dataservice.ImageUtil;
 import aero.minova.rcp.dataservice.XmlProcessor;
+import aero.minova.rcp.form.model.xsd.Browser;
 import aero.minova.rcp.form.model.xsd.Field;
 import aero.minova.rcp.form.model.xsd.Form;
 import aero.minova.rcp.form.model.xsd.Grid;
@@ -92,6 +94,7 @@ import aero.minova.rcp.form.setup.xbs.Node;
 import aero.minova.rcp.form.setup.xbs.Preferences;
 import aero.minova.rcp.model.Column;
 import aero.minova.rcp.model.form.MBooleanField;
+import aero.minova.rcp.model.form.MBrowser;
 import aero.minova.rcp.model.form.MButton;
 import aero.minova.rcp.model.form.MDateTimeField;
 import aero.minova.rcp.model.form.MDetail;
@@ -110,6 +113,7 @@ import aero.minova.rcp.model.form.MTextField;
 import aero.minova.rcp.model.form.ModelToViewModel;
 import aero.minova.rcp.model.helper.IHelper;
 import aero.minova.rcp.preferences.ApplicationPreferences;
+import aero.minova.rcp.rcp.accessor.BrowserAccessor;
 import aero.minova.rcp.rcp.accessor.ButtonAccessor;
 import aero.minova.rcp.rcp.accessor.DetailAccessor;
 import aero.minova.rcp.rcp.accessor.GridAccessor;
@@ -126,9 +130,11 @@ import aero.minova.rcp.rcp.fields.ShortDateField;
 import aero.minova.rcp.rcp.fields.ShortTimeField;
 import aero.minova.rcp.rcp.fields.TextField;
 import aero.minova.rcp.rcp.util.DirtyFlagUtil;
+import aero.minova.rcp.rcp.util.SectionWrapper;
 import aero.minova.rcp.rcp.util.TabUtil;
 import aero.minova.rcp.rcp.util.TranslateUtil;
 import aero.minova.rcp.rcp.util.WFCDetailCASRequestsUtil;
+import aero.minova.rcp.rcp.widgets.BrowserSection;
 import aero.minova.rcp.rcp.widgets.SectionGrid;
 
 @SuppressWarnings("restriction")
@@ -180,9 +186,13 @@ public class WFCDetailPart extends WFCFormPart {
 	@Inject
 	EModelService eModelService;
 
+	@Inject
+	Logger logger;
+
 	MApplication mApplication;
 
 	private List<SectionGrid> sectionGrids = new ArrayList<>();
+	private List<BrowserSection> browserSections = new ArrayList<>();
 	private ScrolledComposite scrolled;
 
 	private MinovaSection headSection;
@@ -231,12 +241,15 @@ public class WFCDetailPart extends WFCFormPart {
 		mPerspective.getContext().set(Constants.DETAIL_WIDTH, detailWidth);
 		TranslateUtil.translate(composite, translationService, locale);
 
-		// Helper erst initialisieren, wenn casRequestsUtil erstellt wurde
-		if (mDetail.getHelper() != null) {
-			mDetail.getHelper().setControls(mDetail);
+		// Helpers erst initialisieren, wenn casRequestsUtil erstellt wurde
+		for (IHelper helper : mDetail.getHelpers()) {
+			helper.setControls(mDetail);
 		}
 
 		openRestoringUIDialog();
+
+		// In XBS gegebene Felder füllen
+		casRequestsUtil.setValuesAccordingToXBS();
 	}
 
 	/**
@@ -265,81 +278,6 @@ public class WFCDetailPart extends WFCFormPart {
 		}
 	}
 
-	private static class HeadOrPageOrGridWrapper {
-		private Object headOrPageOrGrid;
-		public boolean isHead = false;
-		public boolean isOP = false;
-		private String formTitle;
-		public String formSuffix;
-		public String id;
-		public String icon;
-		public boolean isVisible;
-
-		public HeadOrPageOrGridWrapper(Object headOrPageOrGrid) {
-			this.headOrPageOrGrid = headOrPageOrGrid;
-			if (headOrPageOrGrid instanceof Head) {
-				isHead = true;
-				id = "Head";
-				isVisible = true;
-			} else if (headOrPageOrGrid instanceof Page) {
-				id = ((Page) headOrPageOrGrid).getId();
-				icon = ((Page) headOrPageOrGrid).getIcon();
-				isVisible = ((Page) headOrPageOrGrid).isVisible();
-			} else {
-				id = ((Grid) headOrPageOrGrid).getId();
-				icon = ((Grid) headOrPageOrGrid).getIcon();
-				isVisible = true;
-			}
-		}
-
-		public HeadOrPageOrGridWrapper(Object headOrPageOrGrid, boolean isOP, String formSuffix) {
-			this(headOrPageOrGrid);
-			this.formSuffix = formSuffix;
-			this.isOP = isOP;
-			if (headOrPageOrGrid instanceof Head && !isOP) {
-				isHead = true;
-			} else {
-				isHead = false;
-			}
-
-			if (headOrPageOrGrid instanceof Head && isOP) {
-				id = formSuffix + ".Head";
-			}
-		}
-
-		public HeadOrPageOrGridWrapper(Object headOrPageOrGrid, boolean isOP, String formSuffix, String formTitle, String icon) {
-			this(headOrPageOrGrid, isOP, formSuffix);
-			this.formTitle = formTitle;
-			this.icon = icon;
-		}
-
-		public String getTranslationText() {
-			if (isHead) {
-				return "@Head";
-			} else if (headOrPageOrGrid instanceof Head && isOP) {
-				return formTitle;
-			} else if (headOrPageOrGrid instanceof Grid) {
-				return ((Grid) headOrPageOrGrid).getTitle();
-			} else if (headOrPageOrGrid instanceof Page) {
-				return ((Page) headOrPageOrGrid).getText();
-			}
-			return "";
-		}
-
-		public List<Object> getFieldOrGrid() {
-			if (headOrPageOrGrid instanceof Head) {
-				return ((Head) headOrPageOrGrid).getFieldOrGrid();
-			} else if (headOrPageOrGrid instanceof Grid) {
-				// es existieren keine Felder, nur eine Table
-				List<Object> mylistList = new ArrayList<>();
-				mylistList.add(headOrPageOrGrid);
-				return mylistList;
-			}
-			return ((Page) headOrPageOrGrid).getFieldOrGrid();
-		}
-
-	}
-
 	private void layoutForm(Composite parent) {
 
 		// Wir wollen eine horizontale Scrollbar, damit auch bei breiten Details alles erreichbar ist
@@ -353,7 +291,7 @@ public class WFCDetailPart extends WFCFormPart {
 
 		// Abschnitte der Hauptmaske und OPs erstellen
 		for (Object headOrPage : form.getDetail().getHeadAndPageAndGrid()) {
-			HeadOrPageOrGridWrapper wrapper = new HeadOrPageOrGridWrapper(headOrPage);
+			SectionWrapper wrapper = new SectionWrapper(headOrPage);
 			layoutSection(wrap, wrapper);
 		}
 		loadOptionPages(wrap);
@@ -402,13 +340,13 @@ public class WFCDetailPart extends WFCFormPart {
 				}
 			}
 		} catch (Exception e1) {
-			e1.printStackTrace();
+			logger.error(e1);
 		}
 
 		if (iHelper == null) {
 			MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", translationService.translate("@msg.HelperNotFound", null));
 		} else {
-			getDetail().setHelper(iHelper);
+			getDetail().addHelper(iHelper);
 			ContextInjectionFactory.inject(iHelper, mPerspective.getContext()); // In Context, damit Injection verfügbar ist
 		}
 	}
@@ -431,19 +369,31 @@ public class WFCDetailPart extends WFCFormPart {
 						} catch (IllegalArgumentException e) {
 							try {
 								String opContent = dataService.getHashedFile(op.getName()).get();
-								Grid opGrid = XmlProcessor.get(opContent, Grid.class);
-								addOPFromGrid(opGrid, parent, op);
+								addOPForGridOrBrowser(parent, op, opContent);
 							} catch (JAXBException e1) {
-								e1.printStackTrace();
+								logger.error(e1);
 							}
 						}
-					} catch (InterruptedException | ExecutionException e) {
-						e.printStackTrace();
+					} catch (ExecutionException e) {
+						logger.error(e);
+					} catch (InterruptedException e) {
+						logger.error(e);
+						Thread.currentThread().interrupt();
 					} catch (NoSuchFieldException e) {
 						MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", e.getMessage());
 					}
 				}
 			}
+		}
+	}
+
+	private void addOPForGridOrBrowser(Composite parent, Node op, String opContent) throws JAXBException, NoSuchFieldException {
+		try {
+			Grid opGrid = XmlProcessor.get(opContent, Grid.class);
+			addOPFromGrid(opGrid, parent, op);
+		} catch (IllegalArgumentException e2) {
+			Browser opBrowser = XmlProcessor.get(opContent, Browser.class);
+			addOPFromBrowser(opBrowser, parent);
 		}
 	}
 
@@ -453,12 +403,12 @@ public class WFCDetailPart extends WFCFormPart {
 		mDetail.addOptionPageKeys(opForm.getDetail().getProcedureSuffix(), keynamesToValues);
 
 		for (Object headOrPage : opForm.getDetail().getHeadAndPageAndGrid()) {
-			HeadOrPageOrGridWrapper wrapper;
+			SectionWrapper wrapper;
 			if (headOrPage instanceof Head) {
 				// Head in der OP braucht titel und icon der Form
-				wrapper = new HeadOrPageOrGridWrapper(headOrPage, true, opForm.getDetail().getProcedureSuffix(), opForm.getTitle(), opForm.getIcon());
+				wrapper = new SectionWrapper(headOrPage, true, opForm.getDetail().getProcedureSuffix(), opForm.getTitle(), opForm.getIcon());
 			} else {
-				wrapper = new HeadOrPageOrGridWrapper(headOrPage, true, opForm.getDetail().getProcedureSuffix());
+				wrapper = new SectionWrapper(headOrPage, true, opForm.getDetail().getProcedureSuffix());
 			}
 			layoutSection(parent, wrapper);
 		}
@@ -467,22 +417,38 @@ public class WFCDetailPart extends WFCFormPart {
 		for (Entry<String, String> e : keynamesToValues.entrySet()) {
 			String opFieldName = opForm.getDetail().getProcedureSuffix() + "." + e.getKey();
 			String mainFieldName = e.getValue();
+
 			if (mDetail.getField(opFieldName) == null) {
-				throw new NoSuchFieldException(
+				NoSuchFieldException error = new NoSuchFieldException(
 						"Option Page \"" + opForm.getDetail().getProcedureSuffix() + "\" does not contain Field \"" + e.getKey() + "\"! (As defined in .xbs)");
+				logger.error(error);
+				throw error;
 			}
+
+			if (mainFieldName.startsWith(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL)) {
+				continue;
+			}
+
 			if (mDetail.getField(mainFieldName) == null) {
-				throw new NoSuchFieldException("Main Mask does not contain Field \"" + mainFieldName + "\", needed for OP \""
+				NoSuchFieldException error = new NoSuchFieldException("Main Mask does not contain Field \"" + mainFieldName + "\", needed for OP \""
 						+ opForm.getDetail().getProcedureSuffix() + "\"! (As defined in .xbs)");
+				logger.error(error);
+				throw error;
 			}
 		}
+
+		initializeHelper(opForm.getHelperClass());
 	}
 
 	private void addOPFromGrid(Grid opGrid, Composite parent, Node opNode) throws NoSuchFieldException {
-		HeadOrPageOrGridWrapper wrapper = new HeadOrPageOrGridWrapper(opGrid);
+		SectionWrapper wrapper = new SectionWrapper(opGrid);
 		layoutSection(parent, wrapper);
-
 		addKeysFromXBSToGrid(opGrid, opNode);
+	}
+
+	private void addOPFromBrowser(Browser opBrowser, Composite parent) {
+		SectionWrapper wrapper = new SectionWrapper(opBrowser);
+		layoutSection(parent, wrapper);
 	}
 
 	/**
@@ -506,12 +472,19 @@ public class WFCDetailPart extends WFCFormPart {
 		}
 		for (Entry<String, String> e : keynamesToValues.entrySet()) {
 			if (!sgColumnNames.contains(e.getKey())) {
-				throw new NoSuchFieldException(
+				NoSuchFieldException error = new NoSuchFieldException(
 						"Grid \"" + sg.getDataTable().getName() + "\" does not contain Field \"" + e.getKey() + "\"! (As defined in .xbs)");
+				logger.error(error);
+				throw error;
+			}
+			if (e.getValue().startsWith(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL)) {
+				continue;
 			}
 			if (mDetail.getField(e.getValue()) == null) {
-				throw new NoSuchFieldException("Main Mask does not contain Field \"" + e.getValue() + "\", needed for Grid \"" + sg.getDataTable().getName()
-						+ "\"! (As defined in .xbs)");
+				NoSuchFieldException error = new NoSuchFieldException("Main Mask does not contain Field \"" + e.getValue() + "\", needed for Grid \""
+						+ sg.getDataTable().getName() + "\"! (As defined in .xbs)");
+				logger.error(error);
+				throw error;
 			}
 		}
 	}
@@ -525,10 +498,10 @@ public class WFCDetailPart extends WFCFormPart {
 	 * @param headOrPageOrGrid
 	 */
 
-	private void layoutSection(Composite parent, HeadOrPageOrGridWrapper headOrPageOrGrid) {
+	private void layoutSection(Composite parent, SectionWrapper headOrPageOrGrid) {
 		MinovaSectionData sectionData = new MinovaSectionData();
 		MinovaSection section;
-		if (headOrPageOrGrid.isHead) {
+		if (headOrPageOrGrid.isHead()) {
 			section = new MinovaSection(parent, ExpandableComposite.TITLE_BAR | ExpandableComposite.EXPANDED);
 			headSection = section;
 		} else {
@@ -543,7 +516,7 @@ public class WFCDetailPart extends WFCFormPart {
 		section.setLayoutData(sectionData);
 		section.setData(TRANSLATE_PROPERTY, headOrPageOrGrid.getTranslationText());
 
-		ImageDescriptor imageDescriptor = ImageUtil.getImageDescriptor(headOrPageOrGrid.icon, false);
+		ImageDescriptor imageDescriptor = ImageUtil.getImageDescriptor(headOrPageOrGrid.getIcon(), false);
 		if (!imageDescriptor.equals(ImageDescriptor.getMissingImageDescriptor())) {
 			section.setImage(resManager.createImage(imageDescriptor));
 		}
@@ -556,7 +529,7 @@ public class WFCDetailPart extends WFCFormPart {
 		});
 
 		// Wir erstellen die Section des Details.
-		MSection mSection = new MSection(headOrPageOrGrid.isHead, "open", mDetail, headOrPageOrGrid.id, section.getText());
+		MSection mSection = new MSection(headOrPageOrGrid.isHead(), "open", mDetail, headOrPageOrGrid.getId(), section.getText());
 		mSection.setSectionAccessor(new SectionAccessor(mSection, section));
 		// Button erstellen, falls vorhanden
 		createButton(headOrPageOrGrid, section);
@@ -567,13 +540,13 @@ public class WFCDetailPart extends WFCFormPart {
 
 		// Order setzen und sectionCount erhöhen
 		sectionCount++;
-		sectionData.order = sectionCount;
+		sectionData.setOrder(sectionCount);
 
 		// Alten Zustand wiederherstellen
 		// HorizontalFill
 		String prefsHorizontalFillKey = form.getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".horizontalFill";
 		String horizontalFillString = prefsDetailSections.get(prefsHorizontalFillKey, "false");
-		sectionData.horizontalFill = Boolean.parseBoolean(horizontalFillString);
+		sectionData.setHorizontalFill(Boolean.parseBoolean(horizontalFillString));
 
 		// Ein-/Ausgeklappt
 		String prefsExpandedString = form.getTitle() + "." + headOrPageOrGrid.getTranslationText() + ".expanded";
@@ -588,7 +561,7 @@ public class WFCDetailPart extends WFCFormPart {
 		}
 
 		// Sichtbarkeit entsprechend der Maske setzen
-		mSection.setVisible(headOrPageOrGrid.isVisible);
+		mSection.setVisible(headOrPageOrGrid.isVisible());
 
 		detailWidth = section.getCssStyler().getSectionWidth();
 		section.requestLayout();
@@ -621,7 +594,7 @@ public class WFCDetailPart extends WFCFormPart {
 		bar.requestLayout();
 	}
 
-	private void layoutSectionClient(HeadOrPageOrGridWrapper headOrPageOrGrid, MinovaSection section, MSection mSection) {
+	private void layoutSectionClient(SectionWrapper headOrPageOrGrid, MinovaSection section, MSection mSection) {
 		// Client Area
 		Composite clientComposite = getFormToolkit().createComposite(section);
 		clientComposite.setLayout(new FormLayout());
@@ -629,7 +602,7 @@ public class WFCDetailPart extends WFCFormPart {
 		section.setClient(clientComposite);
 
 		// Erstellen der Field des Section.
-		createFields(clientComposite, headOrPageOrGrid, mSection, section);
+		createSectionContent(clientComposite, headOrPageOrGrid, mSection, section);
 		// Setzen der TabListe für die einzelnen Sections.
 		TabUtil.updateTabListOfSectionComposite(clientComposite);
 		// Setzen der TabListe der Sections im Part.
@@ -647,20 +620,20 @@ public class WFCDetailPart extends WFCFormPart {
 	 * @param mSection
 	 * @param section
 	 */
-	private void createButton(HeadOrPageOrGridWrapper headOPOGWrapper, Section section) {
-		if (headOPOGWrapper.headOrPageOrGrid instanceof Grid) {
+	private void createButton(SectionWrapper headOPOGWrapper, Section section) {
+		if (headOPOGWrapper.getSection() instanceof Grid || headOPOGWrapper.getSection() instanceof Browser) {
 			return;
 		}
 
-		boolean isHead = headOPOGWrapper.isHead && !headOPOGWrapper.isOP;
+		boolean isHead = headOPOGWrapper.isHead() && !headOPOGWrapper.isOP();
 
 		final ToolBar bar = new ToolBar(section, SWT.FLAT | SWT.HORIZONTAL | SWT.RIGHT | SWT.NO_FOCUS);
 
 		List<aero.minova.rcp.form.model.xsd.Button> buttons = null;
-		if (headOPOGWrapper.headOrPageOrGrid instanceof Head) {
-			buttons = ((Head) headOPOGWrapper.headOrPageOrGrid).getButton();
+		if (headOPOGWrapper.getSection() instanceof Head) {
+			buttons = ((Head) headOPOGWrapper.getSection()).getButton();
 		} else {
-			buttons = ((Page) headOPOGWrapper.headOrPageOrGrid).getButton();
+			buttons = ((Page) headOPOGWrapper.getSection()).getButton();
 		}
 
 		for (aero.minova.rcp.form.model.xsd.Button btn : buttons) {
@@ -958,17 +931,32 @@ public class WFCDetailPart extends WFCFormPart {
 		return mgrid;
 	}
 
+	private MBrowser createMBrowser(Browser browser, MSection section) {
+
+		if (browser.getId() == null) {
+			MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", "Browser has no ID!");
+		}
+
+		MBrowser mBrowser = new MBrowser(browser.getId());
+		mBrowser.setTitle(browser.getTitle());
+		final ImageDescriptor browserImageDescriptor = ImageUtil.getImageDescriptor(browser.getIcon(), false);
+		Image browserImage = resManager.createImage(browserImageDescriptor);
+		mBrowser.setIcon(browserImage);
+		mBrowser.setmSection(section);
+		return mBrowser;
+	}
+
 	/**
-	 * Erstellt die Field einer Section.
+	 * Erstellt den Inhalt einer Sektion.
 	 *
 	 * @param composite
 	 *            der parent des Fields
 	 * @param headOrPage
 	 *            bestimmt ob die Fields nach den Regeln des Heads erstellt werden oder der einer Page.
 	 * @param mSection
-	 *            die Section deren Fields erstellt werden.
+	 *            die Section deren Fields erstellt werden sollen.
 	 */
-	private void createFields(Composite composite, HeadOrPageOrGridWrapper headOrPage, MSection mSection, MinovaSection section) {
+	private void createSectionContent(Composite composite, SectionWrapper headOrPage, MSection mSection, MinovaSection section) {
 		IEclipseContext context = mPerspective.getContext();
 		List<MField> visibleMFields = new ArrayList<>();
 		for (Object fieldOrGrid : headOrPage.getFieldOrGrid()) {
@@ -976,11 +964,13 @@ public class WFCDetailPart extends WFCFormPart {
 
 				createGrid(composite, mSection, section, context, fieldOrGrid);
 
+			} else if (fieldOrGrid instanceof Browser) {
+				createBrowser(composite, mSection, fieldOrGrid, context);
 			} else {
 
 				Field field = (Field) fieldOrGrid;
 
-				String suffix = headOrPage.isOP ? headOrPage.formSuffix + "." : "";
+				String suffix = headOrPage.isOP() ? headOrPage.getFormSuffix() + "." : "";
 				MField mField = createMField(field, mSection, suffix);
 				if (mField.isVisible()) {
 					visibleMFields.add(mField);
@@ -998,6 +988,20 @@ public class WFCDetailPart extends WFCFormPart {
 			}
 		}
 		createUIFields(visibleMFields, composite);
+	}
+
+	private void createBrowser(Composite composite, MSection mSection, Object fieldOrGrid, IEclipseContext context) {
+		BrowserSection browserSection = new BrowserSection(composite);
+		browserSection.createBrowser();
+		MBrowser mBrowser = createMBrowser((Browser) fieldOrGrid, mSection);
+		BrowserAccessor browserAccessor = new BrowserAccessor();
+		browserAccessor.setBrowserSection(browserSection);
+		browserAccessor.setmBrowser(mBrowser);
+		mBrowser.setBrowserAccessor(browserAccessor);
+		mSection.getmDetail().putBrowser(mBrowser);
+		browserSections.add(browserSection);
+
+		ContextInjectionFactory.inject(browserSection, context); // In Context injected, damit Injection in der Klasse verfügbar ist
 	}
 
 	public void createUIFields(List<MField> mFields, Composite clientComposite) {
@@ -1153,7 +1157,7 @@ public class WFCDetailPart extends WFCFormPart {
 		try {
 			prefsDetailSections.flush();
 		} catch (BackingStoreException e1) {
-			e1.printStackTrace();
+			logger.error(e1);
 		}
 	}
 

@@ -7,16 +7,16 @@
     <parent>
         <groupId>aero.minova.rcp</groupId>
         <artifactId>aero.minova.rcp.root</artifactId>
-        <version>12.2.1-SNAPSHOT</version>
+        <version>12.4.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modules>
         <module>aero.minova.rcp.model.tests</module>
         <module>aero.minova.rcp.rcp.tests</module>
-        <module>aero.minova.rcp.uitests</module>
         <module>aero.minova.rcp.preferencewindow.tests</module>
         <module>aero.minova.rcp.xml.tests</module>
+		<module>aero.minova.rcp.uitests</module>
     </modules>
 
     <dependencies>

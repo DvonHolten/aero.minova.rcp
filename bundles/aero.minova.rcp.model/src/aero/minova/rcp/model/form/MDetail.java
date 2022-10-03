@@ -20,16 +20,13 @@ public class MDetail {
 	private HashMap<String, MField> fields = new HashMap<>();
 	private List<MField> primaryFields = new ArrayList<>();
 	private HashMap<String, MGrid> grids = new HashMap<>();
+	private HashMap<String, MBrowser> browsers = new HashMap<>();
 	private HashMap<String, MButton> buttons = new HashMap<>();
 	private List<MSection> mSectionList = new ArrayList<>();
-
-	private IHelper helper;
-
+	private List<IHelper> helpers = new ArrayList<>();
 	private Map<String, Form> optionPages = new HashMap<>();
 	private Map<String, Map<String, String>> optionPageKeys = new HashMap<>();
-
 	private IDetailAccessor detailAccessor;
-
 	private boolean clearAfterSave;
 
 	/**
@@ -81,6 +78,34 @@ public class MDetail {
 	 */
 	public MGrid getGrid(String name) {
 		return grids.get(name);
+	}
+
+	public Collection<MBrowser> getBrowsers() {
+		return browsers.values();
+	}
+	
+	/**
+	 * Ein neuer MBrowser dem Detail hinzufügen.
+	 *
+	 * @param g
+	 *            das MGrid
+	 */
+	public void putBrowser(MBrowser b) {
+		if (b == null) {
+			return;
+		}
+		browsers.put(b.getId(), b);
+	}
+	
+	/**
+	 * Liefert den MBrowser mit der ID
+	 *
+	 * @param id
+	 *            Id des Browser
+	 * @return den MBrowser
+	 */
+	public MBrowser getBrowser(String id) {
+		return browsers.get(id);
 	}
 
 	public void putButton(MButton b) {
@@ -162,12 +187,12 @@ public class MDetail {
 		return optionPages.values();
 	}
 
-	public IHelper getHelper() {
-		return helper;
+	public List<IHelper> getHelpers() {
+		return helpers;
 	}
 
-	public void setHelper(IHelper helper) {
-		this.helper = helper;
+	public void addHelper(IHelper helper) {
+		helpers.add(helper);
 	}
 
 	public boolean allFieldsAndGridsValid() {

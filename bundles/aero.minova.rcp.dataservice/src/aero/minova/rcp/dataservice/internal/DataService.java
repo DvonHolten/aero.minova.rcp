@@ -119,7 +119,7 @@ public class DataService implements IDataService {
 
 	private URI workspacePath;
 
-	private Map<String, String> siteParameters;
+	private Map<String, String> siteParameters = new HashMap<>();;
 
 	EventAdmin eventAdmin;
 
@@ -141,7 +141,6 @@ public class DataService implements IDataService {
 		this.server = URI.create(server.endsWith("/") ? server : server.concat("/"));
 		this.workspacePath = workspacePath;
 		init();
-		initSiteParameters();
 
 		// im Falle der Unit tests haben wir keinen bundle context
 		if (FrameworkUtil.getBundle(this.getClass()) != null) {
@@ -168,7 +167,7 @@ public class DataService implements IDataService {
 					.authenticator(authentication);
 			httpClient = httpClientBuilder.build();
 		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 
 		gson = new GsonBuilder() //
@@ -182,7 +181,6 @@ public class DataService implements IDataService {
 	}
 
 	private void initSiteParameters() {
-		siteParameters = new HashMap<>();
 		Table requestTable = TableBuilder.newTable("tSiteParameter") //
 				.withColumn(Constants.TABLE_KEYTEXT, DataType.STRING)//
 				.withColumn("Value", DataType.STRING)//
@@ -205,7 +203,12 @@ public class DataService implements IDataService {
 					}
 				}
 			}
-		} catch (InterruptedException | ExecutionException e) {}
+		} catch (ExecutionException e) {
+			logger.error(e);
+		} catch (InterruptedException e) {
+			logger.error(e);
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	private static SSLContext disabledSslVerificationContext() {
@@ -449,13 +452,13 @@ public class DataService implements IDataService {
 		HttpRequest request = HttpRequest.newBuilder().uri(server.resolve("data/procedure")) //
 				.header(CONTENT_TYPE, "application/json") //
 				.POST(BodyPublishers.ofString(body))//
-				.timeout(Duration.ofSeconds(preferences.getInt(ApplicationPreferences.TIMEOUT_CAS, 15) * 2)).build();
+				.timeout(Duration.ofSeconds(preferences.getInt(ApplicationPreferences.TIMEOUT_CAS, 15) * (long) 2)).build();
 
 		Path path = getStoragePath().resolve("reports/" + table.getName() + table.getRows().get(0).getValue(0).getValue().toString() + ".xml");
 		try {
 			Files.createDirectories(path.getParent());
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 		Path finalPath = Path.of(FileUtil.createFile(path.toString()));
 
@@ -500,12 +503,19 @@ public class DataService implements IDataService {
 		try {
 			if (checkIfUpdateIsRequired(filename)) {
 				logCache(filename + " need to download / update the file ");
+
 				// File löschen, damit es komplett aktualisiert wird
-				getStoragePath().resolve(filename).toFile().delete();
+				if (getStoragePath().resolve(filename).toFile().exists()) {
+					Files.delete(getStoragePath().resolve(filename));
+				}
+
 				downloadFile(filename).join();
 			}
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			logger.error(e);
+		} catch (InterruptedException e) {
+			logger.error(e);
+			Thread.currentThread().interrupt();
 		}
 		return getCachedFileContent(filename);
 	}
@@ -521,8 +531,12 @@ public class DataService implements IDataService {
 					ZipService.unzipFile(this.getStoragePath().resolve(zipname).toFile(), this.getStoragePath().toString());
 				}
 			}
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			logger.error(e);
+			return false;
+		} catch (InterruptedException e) {
+			logger.error(e);
+			Thread.currentThread().interrupt();
 			return false;
 		}
 		return true;
@@ -535,13 +549,13 @@ public class DataService implements IDataService {
 		HttpRequest request = HttpRequest.newBuilder().uri(server.resolve("data/procedure")) //
 				.header(CONTENT_TYPE, "application/json") //
 				.POST(BodyPublishers.ofString(body))//
-				.timeout(Duration.ofSeconds(preferences.getInt(ApplicationPreferences.TIMEOUT_CAS, 15) * 2)).build();
+				.timeout(Duration.ofSeconds(preferences.getInt(ApplicationPreferences.TIMEOUT_CAS, 15) * (long) 2)).build();
 
 		Path path = getStoragePath().resolve(fileName);
 		try {
 			Files.createDirectories(path.getParent());
-		} catch (IOException e1) {
-			e1.printStackTrace();
+		} catch (IOException e) {
+			logger.error(e);
 		}
 		Path finalPath = Path.of(FileUtil.createFile(path.toString()));
 
@@ -692,7 +706,7 @@ public class DataService implements IDataService {
 					return Files.readString(cachedFile.toPath());
 				}
 			} catch (IOException | URISyntaxException e) {
-				e.printStackTrace();
+				logger.error(e);
 			}
 			throw new CompletionException("File not found", null);
 		});
@@ -937,7 +951,7 @@ public class DataService implements IDataService {
 			});
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
@@ -947,7 +961,7 @@ public class DataService implements IDataService {
 			return siteParameters.get(key);
 		}
 
-		// Nochmal versuchen, die SiteParameter abzurufen, wenn Wert nicht gefunden wurde
+		// Die SiteParameter abrufen, wenn Wert nicht gefunden wurde
 		initSiteParameters();
 		if (siteParameters.containsKey(key)) {
 			return siteParameters.get(key);
@@ -1020,7 +1034,7 @@ public class DataService implements IDataService {
 				sqlString = SQLStringUtil.prepareViewString(table);
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 
 		if (LOG_SQL_STRING) {
@@ -1037,7 +1051,7 @@ public class DataService implements IDataService {
 					sqlStringBuilder.append(SQLStringUtil.prepareProcedureString(e.getTable()) + "\n");
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(e);
 			}
 			String sqlString = sqlStringBuilder.toString().strip();
 			body = body + "\n" + sqlString;

@@ -1,7 +1,7 @@
 # Changelog
 All wesentlichen Änderungen für dieses Projekt werden hier dokumentiert.
 
-Das Format basiert auf link:https://keepachangelog.com/en/1.0.0[Keep a Changelog].
+Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
 Mögliche Tags für Änderungen:
 
@@ -10,9 +10,56 @@ Mögliche Tags für Änderungen:
 - `Bugfixes` für Ausbessern von Fehlern
 - `Doku` für neue/geänderte Dokumentation
 
-Der entsprechende Abschnitt des Changelogs wird auch jeweils in die link:https://github.com/minova-afis/aero.minova.rcp/releases[Releasenotes] kopiert.
+Der entsprechende Abschnitt des Changelogs wird auch jeweils in die [Releasenotes](https://github.com/minova-afis/aero.minova.rcp/releases) kopiert.
 
 ## [Unreleased]
+
+### Neu
+
+### Änderung
+
+- Tabelle tSiteParameter NICHT schon beim Starten anfragen. Tabelle wird erst angefragt, wenn ein Helper einen Wert tatsächlich benötigt. Damit werden Exceptions verhindert, wenn ein Projekt nicht auf data.schema aufbaut.
+
+### Bugfixes
+- Auslesen von festen Werten aus xbs korrigiert
+
+## [12.4.2] - 07.09.2022
+
+**ACHTUNG: Dieser Release benötigt mindestes CAS Version 12.38.0. Damit ist er nicht für die Stundenerfassung geeignet!**
+
+### Neu
+
+### Änderung
+
+### Bugfixes
+- Browser wird beim Aufrufen einer READ-Prozedur geleert
+
+## [12.4.1] - 06.09.2022
+
+**ACHTUNG: Dieser Release benötigt mindestes CAS Version 12.38.0. Damit ist er nicht für die Stundenerfassung geeignet!**
+
+### Neu
+
+### Änderung
+
+### Bugfixes
+- Dateien im Browser Widget werden in voller Größe angezeigt
+
+## [12.4.0] - 2022-09-02
+
+**ACHTUNG: Dieser Release benötigt mindestes CAS Version 12.38.0. Damit ist er nicht für die Stundenerfassung geeignet!**
+
+### Neu
+- Statische Werte können über XBS konfiguriert werden
+- Browser Section, für die Darstellung von Attachments im Detail
+- PageOrHeadOrGridWrapper ausgelagert in eigene Klasse, SectionWrapper
+
+### Bugfixes
+- Helper für OP-Grids nicht doppelt hinzufügen
+
+## [12.3.0] - 2022-08-25
+
+**ACHTUNG: Dieser Release benötigt mindestes CAS Version 12.38.0. Damit ist er nicht für die Stundenerfassung geeignet!**
 
 ### Neu
 - CI pipeline mit SonarQube einrichten
@@ -29,7 +76,13 @@ Der entsprechende Abschnitt des Changelogs wird auch jeweils in die link:https:/
 - Unnötige Tests für die Anzahl an TimeZones entfernen, PreferencewindowTests beim Bauen ausführen
 - Einstellung des Dark-Modes unter MacOS ignorieren
 - Code smells, Bugs und Security Hotspots mit Hilfe von Sonarqube entfernen
-- Ersten drei Radioboxen in selbe Zeile wie Label
+- Ersten drei Radioboxen in selbe Zeile wie Label, Label rechtsbündig
+- Nicht mehr benötigte und fehlerhafte Datei AFIS_MDI.mdi entfernen
+- Mehrere Helper pro Maske unterstützen, auch Helper aus OPs nutzen
+- Fehler bei Login Loggen, Verwirrende Meldung ("too many authentication attempts") entfernen 
+- Bei nicht-pflicht Lookups einzigen Wert nicht automatisch eintragen
+- Hinweis "Keine Datensätze geladen" als Benachrichtigungs-Popup anzeigen
+- Connection-String und Username in Einstellungen anzeigen
 
 ### Bugfixes
 - Auswahl von Radioboxen komplett entfernen, wenn ein bereits ausgewähltes Element geklickt wird 
@@ -39,13 +92,13 @@ Der entsprechende Abschnitt des Changelogs wird auch jeweils in die link:https:/
 - Zum Überprüfen, ob ein Datensatz im Detail geladen ist, erstes primary-Feld nutzen, statt fest Feld mit "KeyLong". Damit kann auch in Masken ohne "KeyLong" Feld gelöscht werden
 - Indexdruck mit DateTimeSpalten ermöglichen, Datums-/Zeitformat und Zeitzone aus Einstellungen nutzen
 - Beschreibung von Lookups in Wizards anzeigen
-- DirtyFlag verbessern 
-** Flag nach Laden eines Datensatzes neu berechnen 
-** `null` Values von ParamString und Period korrekt überprüfen
+- DirtyFlag verbessern  
+  - Flag nach Laden eines Datensatzes neu berechnen 
+  - `null` Values von ParamString und Period korrekt überprüfen
 - ParamString verbessern
-** Weitere Felder im selben Abschnitt ermöglichen
-** Unterfelder entfernen, wenn null-Form aufgerufen wird
-** Nach Neuzeichnen der Section selbes Feld wieder auswählen
+  - Weitere Felder im selben Abschnitt ermöglichen
+  - Unterfelder entfernen, wenn null-Form aufgerufen wird
+  - Nach Neuzeichnen der Section selbes Feld wieder auswählen
 
 
 ## [12.2.1] - 2022-07-14
@@ -118,6 +171,4 @@ Der entsprechende Abschnitt des Changelogs wird auch jeweils in die link:https:/
 - Kopfsection in Statistik-Ansicht wird sofort nach dem Erstellen gestylt
 
 ### Doku
-- link:https://github.com/minova-afis/aero.minova.rcp/wiki/Erstellen-von-Grids-in-XML-Maske[Erstellen von Grids in XML Maske]
-
-
+- [Erstellen von Grids in XML Maske](https://github.com/minova-afis/aero.minova.rcp/wiki/Erstellen-von-Grids-in-XML-Maske)

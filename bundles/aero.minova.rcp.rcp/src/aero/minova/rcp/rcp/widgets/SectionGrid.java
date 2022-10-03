@@ -1,7 +1,6 @@
 package aero.minova.rcp.rcp.widgets;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -20,11 +19,13 @@ import org.eclipse.e4.core.commands.EHandlerService;
 import org.eclipse.e4.core.di.annotations.Optional;
 import org.eclipse.e4.core.di.extensions.Preference;
 import org.eclipse.e4.core.services.events.IEventBroker;
+import org.eclipse.e4.core.services.log.Logger;
 import org.eclipse.e4.core.services.translation.TranslationService;
 import org.eclipse.e4.ui.model.application.ui.advanced.MPerspective;
 import org.eclipse.e4.ui.model.application.ui.basic.MWindow;
 import org.eclipse.e4.ui.workbench.UIEvents;
 import org.eclipse.e4.ui.workbench.modeling.EModelService;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.resource.LocalResourceManager;
@@ -81,6 +82,7 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.swt.widgets.ToolItem;
 import org.osgi.service.prefs.BackingStoreException;
@@ -119,6 +121,8 @@ import aero.minova.rcp.rcp.gridvalidation.CrossValidationConfiguration;
 import aero.minova.rcp.rcp.gridvalidation.CrossValidationLabelAccumulator;
 import aero.minova.rcp.rcp.nattable.MinovaGridConfiguration;
 import aero.minova.rcp.rcp.nattable.TriStateCheckBoxPainter;
+import aero.minova.rcp.rcp.util.CustomComparator;
+import aero.minova.rcp.rcp.util.StaticXBSValueUtil;
 import ca.odell.glazedlists.EventList;
 import ca.odell.glazedlists.GlazedLists;
 import ca.odell.glazedlists.SortedList;
@@ -147,10 +151,16 @@ public class SectionGrid {
 	private MWindow mwindow;
 	@Inject
 	private IEventBroker broker;
+	@Inject
+	Logger logger;
 
 	@Inject
 	@Preference(nodePath = ApplicationPreferences.PREFERENCES_NODE, value = ApplicationPreferences.GRID_TAB_NAVIGATION)
 	boolean gridTabNavigation;
+
+	@Inject
+	@Preference(nodePath = ApplicationPreferences.PREFERENCES_NODE, value = ApplicationPreferences.TIMEZONE)
+	public String timezone;
 
 	private NatTable natTable;
 	private Table dataTable;
@@ -161,12 +171,10 @@ public class SectionGrid {
 
 	private SortedList<Row> sortedList;
 	private SelectionLayer selectionLayer;
-	private ColumnHideShowLayer columnHideShowLayer;
 
 	private LocalResourceManager resManager;
 
 	private IButtonAccessor deleteToolItemAccessor;
-	private IButtonAccessor insertToolItemAccessor;
 
 	private GridAccessor gridAccessor;
 
@@ -309,9 +317,7 @@ public class SectionGrid {
 		mButton.setButtonAccessor(bA);
 		mDetail.putButton(mButton);
 
-		if (btn.getId().equals(Constants.CONTROL_GRID_BUTTON_INSERT)) {
-			insertToolItemAccessor = bA;
-		} else if (btn.getId().equals(Constants.CONTROL_GRID_BUTTON_DELETE)) {
+		if (btn.getId().equals(Constants.CONTROL_GRID_BUTTON_DELETE)) {
 			deleteToolItemAccessor = bA;
 		}
 
@@ -377,7 +383,7 @@ public class SectionGrid {
 		eventLayer = new GlazedListsEventLayer<>(bodyDataLayer, sortedList);
 
 		columnReorderLayer = new ColumnReorderLayer(eventLayer);
-		columnHideShowLayer = new ColumnHideShowLayer(columnReorderLayer);
+		ColumnHideShowLayer columnHideShowLayer = new ColumnHideShowLayer(columnReorderLayer);
 		selectionLayer = new SelectionLayer(columnHideShowLayer);
 
 		// Delete Button updaten (nur aktiviert, wenn eine Zelle gewählt ist)
@@ -516,7 +522,7 @@ public class SectionGrid {
 			String commandName = Constants.AERO_MINOVA_RCP_RCP_COMMAND_GRIDBUTTONCOMMAND;
 			execButtonHandler(Constants.CONTROL_GRID_BUTTON_OPTIMIZEHEIGHT, commandName);
 		});
-		getNatTable().getUiBindingRegistry().registerKeyBinding(new KeyEventMatcher(SWT.CR), (natTable, event) -> {
+		getNatTable().getUiBindingRegistry().registerKeyBinding(new KeyEventMatcher(SWT.CR), (matchedTable, event) -> {
 			Map<String, String> parameter = new HashMap<>();
 			ParameterizedCommand command = commandService.createCommand("aero.minova.rcp.rcp.command.traverseenter", parameter);
 			handlerService.executeHandler(command);
@@ -650,22 +656,23 @@ public class SectionGrid {
 		try {
 			prefsDetailSections.flush();
 		} catch (BackingStoreException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 	}
 
 	public void fillHorizontal() {
 		MinovaSectionData rd = (MinovaSectionData) section.getLayoutData();
-		rd.horizontalFill = !rd.horizontalFill;
+		rd.setHorizontalFill(!rd.isHorizontalFill());
 		section.requestLayout();
 
 		// Zustand speichern, damit wiederhergestellt werden kann
 		String key = form.getTitle() + "." + section.getData(FieldUtil.TRANSLATE_PROPERTY) + ".horizontalFill";
-		prefsDetailSections.put(key, rd.horizontalFill + "");
+		prefsDetailSections.put(key, rd.isHorizontalFill() + "");
 	}
 
 	public Row addNewRow() {
 		Row newRow = dataTable.addRow();
+		setValuesAccordingToXBS(newRow);
 		rowsToInsert.add(newRow);
 		fireChange(new GridChangeEvent(gridAccessor.getMGrid(), newRow, dataTable.getRows().size() - 1, true, GridChangeType.INSERT));
 		updateNatTable();
@@ -711,12 +718,42 @@ public class SectionGrid {
 	}
 
 	private void setReferenceOrMainValue(Row r, Map<String, Value> primaryKeys, String mainFieldName, int indexInRow) {
-		if (primaryKeys == null) { // Bei Insert ReferenceValue
+		if (mainFieldName.startsWith(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL)) {
+			// Statischer Wert, Keys müssen nicht geändert werden
+		} else if (primaryKeys == null) { // Bei Insert ReferenceValue
 			ReferenceValue v = new ReferenceValue(Constants.TRANSACTION_PARENT, mainFieldName);
 			r.setValue(v, indexInRow);
 		} else { // Bei Update Wert aus der Hauptmaske
 			Value v = mDetail.getField(mainFieldName).getValue();
 			r.setValue(v, indexInRow);
+		}
+	}
+
+	/**
+	 * Setzt die Values, wie sie in der XBS gegeben sind. Entweder einen statischen Wert, oder den Wert eines Feldes aus der Hauptmaske.
+	 * 
+	 * @param r
+	 */
+	private void setValuesAccordingToXBS(Row r) {
+		for (Entry<String, String> e : getFieldnameToValue().entrySet()) {
+			int indexInRow = dataTable.getColumnIndex(e.getKey());
+			if (e.getValue().startsWith(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL)) {
+				Column c = dataTable.getColumns().get(indexInRow);
+				try {
+					Value v = StaticXBSValueUtil.stringToValue(e.getValue().substring(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL.length()), c.getType(),
+							c.getDateTimeType(), translationService, timezone);
+					r.setValue(v, indexInRow);
+				} catch (Exception exception) {
+					NoSuchFieldException error = new NoSuchFieldException(
+							"String \"" + e.getValue().substring(Constants.OPTION_PAGE_QUOTE_ENTRY_SYMBOL.length()) + "\" can't be parsed to Type \""
+									+ c.getType() + "\" of Column \"" + c.getName() + "\"! (As defined in .xbs)");
+					logger.error(error);
+					MessageDialog.openError(Display.getCurrent().getActiveShell(), "Error", error.getMessage());
+				}
+			} else {
+				Value v = mDetail.getField(e.getValue()).getValue();
+				r.setValue(v, indexInRow);
+			}
 		}
 	}
 
@@ -753,26 +790,6 @@ public class SectionGrid {
 		natTable.commitAndCloseActiveCellEditor();
 	}
 
-	private class CustomComparator implements Comparator<Object> {
-		@Override
-		public int compare(Object o1, Object o2) {
-			if (o1 == null) {
-				if (o2 == null) {
-					return 0;
-				} else {
-					return -1;
-				}
-			} else if (o2 == null) {
-				return 1;
-			} else if (o1 instanceof Comparable && o2 instanceof Comparable && o1.getClass().equals(o2.getClass())) { // Auch überprüfen, ob die Objekte die
-																														// gleiche Klasse haben
-				return ((Comparable) o1).compareTo(o2);
-			} else {
-				return o1.toString().compareTo(o2.toString());
-			}
-		}
-	}
-
 	public void saveState() {
 
 		String key = form.getTitle() + "." + section.getData(FieldUtil.TRANSLATE_PROPERTY);
@@ -795,7 +812,7 @@ public class SectionGrid {
 		try {
 			prefsDetailSections.flush();
 		} catch (BackingStoreException e) {
-			e.printStackTrace();
+			logger.error(e);
 		}
 
 	}
